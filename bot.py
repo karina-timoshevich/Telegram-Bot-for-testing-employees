@@ -73,7 +73,7 @@ async def choose_role(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if role == "наставник":
         await update.message.reply_text(
             "Введите пароль для доступа к режиму наставника:",
-            reply_markup=ReplyKeyboardRemove()
+            reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
         )
         return ENTER_PASSWORD
     elif role == "сотрудник":
@@ -84,11 +84,24 @@ async def choose_role(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def enter_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    password = update.message.text.strip()
-    if password == MENTOR_PASSWORD:
+    text = update.message.text.strip()
+    if text == "🔙 Назад":
+        context.user_data.clear()
+        await update.message.reply_text(
+            "Отмена ввода пароля. Выберите роль заново:",
+            reply_markup=ReplyKeyboardMarkup(
+                [["Сотрудник", "Наставник"]],
+                resize_keyboard=True,
+                one_time_keyboard=True
+            )
+        )
+        return CHOOSE_ROLE
+
+    if text == MENTOR_PASSWORD:
         return await mentor_menu(update, context)
     else:
-        await update.message.reply_text("❌ Неверный пароль. Попробуйте снова:")
+        keyboard = ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text("❌ Неверный пароль. Попробуйте снова или нажмите «🔙 Назад» для отмены:", reply_markup=keyboard)
         return ENTER_PASSWORD
 
 
@@ -156,7 +169,7 @@ async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TY
         data = load_data()
         specialties = list(data['specialties'].keys())
         keyboard = [[spec] for spec in specialties]
-        keyboard.append(["🔙 Назад"])  # Не забудь кнопку назад
+        keyboard.append(["🔙 Назад"])  
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
         await update.message.reply_text(
@@ -182,7 +195,6 @@ async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TY
 async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.message.text.strip()
     if choice == "🔙 Назад":
-        # Сбрасываем роль и возвращаемся к выбору роли
         context.user_data.clear()
         await update.message.reply_text(
             "Вы вернулись к выбору роли.",
