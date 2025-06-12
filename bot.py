@@ -9,7 +9,7 @@ import os
 
 import json
 
-DATA_FILE = 'data.json' 
+DATA_FILE = 'data.json'
 
 
 def load_data():
@@ -45,6 +45,11 @@ EDIT_TEST_MENU = 10
 ADD_TEST_QUESTION = 11
 ADD_TEST_OPTIONS = 12
 ADD_TEST_CORRECT = 13
+EDIT_EXISTING_QUESTION = 14
+CHOOSE_EDIT_TYPE = 15
+EDIT_QUESTION_TEXT = 16
+EDIT_QUESTION_OPTIONS = 17
+EDIT_QUESTION_CORRECT = 18
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -221,12 +226,97 @@ async def handle_test_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✍️ Введите текст вопроса:")
         return ADD_TEST_QUESTION
 
+    elif choice == "✏️ Редактировать вопрос":
+        return await choose_question_to_edit(update, context)
+
     elif choice == "🔙 Назад в меню наставника":
         return await mentor_menu(update, context)
 
     else:
         await update.message.reply_text("Пожалуйста, выберите действие.")
         return EDIT_TEST_MENU
+
+
+
+async def choose_question_to_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    specialty = context.user_data['edit_specialty']
+    data = load_data()
+    tests = data['specialties'][specialty].get('tests', [])
+
+    try:
+        if not tests:
+            await update.message.reply_text("Нет вопросов для редактирования.")
+            return await show_test_edit_menu(update, context)
+
+        await update.message.reply_text("Введите номер вопроса, который хотите отредактировать:")
+        return EDIT_EXISTING_QUESTION
+    except Exception as e:
+        await update.message.reply_text("Ошибка при выборе вопроса.")
+        return EDIT_TEST_MENU
+
+
+async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        index = int(update.message.text.strip()) - 1
+        specialty = context.user_data['edit_specialty']
+        data = load_data()
+        tests = data['specialties'][specialty]['tests']
+        if index < 0 or index >= len(tests):
+            raise ValueError
+
+        context.user_data['edit_index'] = index
+        keyboard = [["Вопрос", "Варианты", "Правильный"], ["🔙 Назад"]]
+        await update.message.reply_text("Что хотите изменить?",
+                                        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+        return CHOOSE_EDIT_TYPE
+    except:
+        await update.message.reply_text("Некорректный номер. Попробуйте снова.")
+        return EDIT_EXISTING_QUESTION
+
+
+async def edit_question_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    specialty = context.user_data['edit_specialty']
+    index = context.user_data['edit_index']
+    data = load_data()
+    data['specialties'][specialty]['tests'][index]['question'] = text
+    save_data(data)
+    await update.message.reply_text("✅ Вопрос обновлён.")
+    return await show_test_edit_menu(update, context)
+
+
+async def edit_question_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip().split('\n')
+    if len(text) < 2:
+        await update.message.reply_text("Минимум два варианта.")
+        return EDIT_QUESTION_OPTIONS
+
+    specialty = context.user_data['edit_specialty']
+    index = context.user_data['edit_index']
+    data = load_data()
+    data['specialties'][specialty]['tests'][index]['options'] = text
+    save_data(data)
+    await update.message.reply_text("✅ Варианты обновлены.")
+    return await show_test_edit_menu(update, context)
+
+
+async def edit_question_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        correct = int(update.message.text.strip())
+        specialty = context.user_data['edit_specialty']
+        index = context.user_data['edit_index']
+        options = load_data()['specialties'][specialty]['tests'][index]['options']
+        if correct < 1 or correct > len(options):
+            raise ValueError
+
+        data = load_data()
+        data['specialties'][specialty]['tests'][index]['correct'] = correct
+        save_data(data)
+        await update.message.reply_text("✅ Правильный ответ обновлён.")
+        return await show_test_edit_menu(update, context)
+    except:
+        await update.message.reply_text("Некорректный номер.")
+        return EDIT_QUESTION_CORRECT
 
 
 async def add_specialty_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -264,8 +354,10 @@ async def show_test_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
             text += f"{i}. {q['question']} (Правильный: {q['correct']})\n"
 
     keyboard = [
-        ["➕ Добавить вопрос", "🔙 Назад в меню наставника"]
+        ["➕ Добавить вопрос", "✏️ Редактировать вопрос"],
+        ["🔙 Назад в меню наставника"]
     ]
+
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
     await update.message.reply_text(text, reply_markup=reply_markup)
@@ -301,7 +393,7 @@ async def add_test_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ADD_TEST_OPTIONS
 
     context.user_data['new_options'] = options
-    reply_markup = ReplyKeyboardMarkup([[str(i+1)] for i in range(len(options))], resize_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(options))], resize_keyboard=True)
     await update.message.reply_text("Выберите номер правильного варианта:", reply_markup=reply_markup)
     return ADD_TEST_CORRECT
 
@@ -333,6 +425,26 @@ async def add_test_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return await show_test_edit_menu(update, context)
 
 
+async def edit_question_text_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Введите новый текст вопроса:")
+    return EDIT_QUESTION_TEXT
+
+
+async def edit_question_options_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Введите новые варианты ответа, по одному на строку:")
+    return EDIT_QUESTION_OPTIONS
+
+
+async def edit_question_correct_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    specialty = context.user_data['edit_specialty']
+    index = context.user_data['edit_index']
+    data = load_data()
+    options = data['specialties'][specialty]['tests'][index]['options']
+    keyboard = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(options))], resize_keyboard=True)
+    await update.message.reply_text("Выберите номер правильного варианта:", reply_markup=keyboard)
+    return EDIT_QUESTION_CORRECT
+
+
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -346,11 +458,22 @@ def main():
             ADD_SPECIALTY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_name)],
             CHOOSE_SPECIALTY_FOR_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_for_edit)],
             EDIT_MATERIALS_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_materials)],
-            CHOOSE_SPECIALTY_FOR_TEST_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_for_test_edit)],
+            CHOOSE_SPECIALTY_FOR_TEST_EDIT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_for_test_edit)],
             EDIT_TEST_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_test_menu)],
             ADD_TEST_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_question)],
             ADD_TEST_OPTIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_options)],
             ADD_TEST_CORRECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_correct)],
+            EDIT_EXISTING_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_edit_type)],
+            CHOOSE_EDIT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, lambda u, c: {
+                "вопрос": edit_question_text_prompt,
+                "варианты": edit_question_options_prompt,
+                "правильный": edit_question_correct_prompt
+            }.get(u.message.text.strip().lower(), lambda *_: u.message.reply_text("Выберите один из вариантов."))(u,
+                                                                                                                  c))],
+            EDIT_QUESTION_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_text)],
+            EDIT_QUESTION_OPTIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_options)],
+            EDIT_QUESTION_CORRECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_correct)],
 
         },
         fallbacks=[],
