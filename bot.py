@@ -9,7 +9,7 @@ import os
 
 import json
 
-DATA_FILE = 'data.json'  # имя файла с данными
+DATA_FILE = 'data.json' 
 
 
 def load_data():
@@ -40,6 +40,11 @@ CHOOSE_ROLE, ENTER_PASSWORD, CHOOSE_SPECIALTY, MENTOR_MENU, EDIT_MATERIALS, EDIT
 ADD_SPECIALTY_NAME = 6
 CHOOSE_SPECIALTY_FOR_EDIT = 7
 EDIT_MATERIALS_INPUT = 8
+CHOOSE_SPECIALTY_FOR_TEST_EDIT = 9
+EDIT_TEST_MENU = 10
+ADD_TEST_QUESTION = 11
+ADD_TEST_OPTIONS = 12
+ADD_TEST_CORRECT = 13
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -185,9 +190,18 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                                         reply_markup=reply_markup)
         return CHOOSE_SPECIALTY_FOR_EDIT
 
-    elif choice == "❓ Редактировать тесты":
-        await update.message.reply_text("🛠 Скоро тут будет редактирование тестов (тоже заглушка).")
-        return MENTOR_MENU
+    elif choice == "📝 Редактировать тесты":
+        data = load_data()
+        specialties = list(data['specialties'].keys())
+        if not specialties:
+            await update.message.reply_text("Специальностей пока нет, сначала добавьте их.")
+            return MENTOR_MENU
+
+        keyboard = [[spec] for spec in specialties]
+        keyboard.append(["🔙 Назад"])
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text("Выберите специальность для редактирования тестов:", reply_markup=reply_markup)
+        return CHOOSE_SPECIALTY_FOR_TEST_EDIT
 
     elif choice == "🔙 Выйти в главное меню":
         return await start(update, context)
@@ -198,6 +212,21 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         await update.message.reply_text("Пожалуйста, выберите пункт из меню.")
         return MENTOR_MENU
+
+
+async def handle_test_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    choice = update.message.text.strip()
+
+    if choice == "➕ Добавить вопрос":
+        await update.message.reply_text("✍️ Введите текст вопроса:")
+        return ADD_TEST_QUESTION
+
+    elif choice == "🔙 Назад в меню наставника":
+        return await mentor_menu(update, context)
+
+    else:
+        await update.message.reply_text("Пожалуйста, выберите действие.")
+        return EDIT_TEST_MENU
 
 
 async def add_specialty_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -222,6 +251,88 @@ async def add_specialty_name(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return await mentor_menu(update, context)
 
 
+async def show_test_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    specialty = context.user_data['edit_specialty']
+    data = load_data()
+    tests = data['specialties'][specialty].get('tests', [])
+
+    if not tests:
+        text = "🔹 Пока нет ни одного теста."
+    else:
+        text = "📝 Список текущих вопросов:\n"
+        for i, q in enumerate(tests, 1):
+            text += f"{i}. {q['question']} (Правильный: {q['correct']})\n"
+
+    keyboard = [
+        ["➕ Добавить вопрос", "🔙 Назад в меню наставника"]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+    await update.message.reply_text(text, reply_markup=reply_markup)
+    return EDIT_TEST_MENU
+
+
+async def choose_specialty_for_test_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    specialty = update.message.text.strip()
+
+    if specialty == "🔙 Назад":
+        return await mentor_menu(update, context)
+
+    data = load_data()
+    if specialty not in data['specialties']:
+        await update.message.reply_text("Специальность не найдена. Попробуйте снова.")
+        return CHOOSE_SPECIALTY_FOR_TEST_EDIT
+
+    context.user_data['edit_specialty'] = specialty
+    context.user_data['test_edit_index'] = None
+    return await show_test_edit_menu(update, context)
+
+
+async def add_test_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['new_question'] = update.message.text.strip()
+    await update.message.reply_text("Введите варианты ответов, разделённые новой строкой (по одному на строку):")
+    return ADD_TEST_OPTIONS
+
+
+async def add_test_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    options = update.message.text.strip().split('\n')
+    if len(options) < 2:
+        await update.message.reply_text("Минимум два варианта ответа. Попробуйте снова.")
+        return ADD_TEST_OPTIONS
+
+    context.user_data['new_options'] = options
+    reply_markup = ReplyKeyboardMarkup([[str(i+1)] for i in range(len(options))], resize_keyboard=True)
+    await update.message.reply_text("Выберите номер правильного варианта:", reply_markup=reply_markup)
+    return ADD_TEST_CORRECT
+
+
+async def add_test_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        correct_index = int(update.message.text.strip()) - 1
+        options = context.user_data['new_options']
+        if not (0 <= correct_index < len(options)):
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Некорректный номер. Попробуйте снова.")
+        return ADD_TEST_CORRECT
+
+    specialty = context.user_data['edit_specialty']
+    data = load_data()
+    tests = data['specialties'][specialty].get('tests', [])
+
+    new_test = {
+        "question": context.user_data['new_question'],
+        "options": options,
+        "correct": correct_index + 1
+    }
+    tests.append(new_test)
+    data['specialties'][specialty]['tests'] = tests
+    save_data(data)
+
+    await update.message.reply_text("✅ Вопрос успешно добавлен!", reply_markup=ReplyKeyboardRemove())
+    return await show_test_edit_menu(update, context)
+
+
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -235,6 +346,12 @@ def main():
             ADD_SPECIALTY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_name)],
             CHOOSE_SPECIALTY_FOR_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_for_edit)],
             EDIT_MATERIALS_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_materials)],
+            CHOOSE_SPECIALTY_FOR_TEST_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_for_test_edit)],
+            EDIT_TEST_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_test_menu)],
+            ADD_TEST_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_question)],
+            ADD_TEST_OPTIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_options)],
+            ADD_TEST_CORRECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_correct)],
+
         },
         fallbacks=[],
     )
