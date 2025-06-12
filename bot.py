@@ -50,6 +50,7 @@ CHOOSE_EDIT_TYPE = 15
 EDIT_QUESTION_TEXT = 16
 EDIT_QUESTION_OPTIONS = 17
 EDIT_QUESTION_CORRECT = 18
+DELETE_QUESTION = 19
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -180,8 +181,20 @@ async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.message.text.strip()
+    if choice == "🔙 Назад":
+        # Сбрасываем роль и возвращаемся к выбору роли
+        context.user_data.clear()
+        await update.message.reply_text(
+            "Вы вернулись к выбору роли.",
+            reply_markup=ReplyKeyboardMarkup(
+                [["Сотрудник", "Наставник"]],
+                resize_keyboard=True,
+                one_time_keyboard=True
+            )
+        )
+        return CHOOSE_ROLE
 
-    if choice == "📚 Редактировать материалы":
+    elif choice == "📚 Редактировать материалы":
         data = load_data()
         specialties = list(data['specialties'].keys())
         if not specialties:
@@ -229,13 +242,24 @@ async def handle_test_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif choice == "✏️ Редактировать вопрос":
         return await choose_question_to_edit(update, context)
 
+    elif choice == "🗑 Удалить вопрос":
+        specialty = context.user_data['edit_specialty']
+        data = load_data()
+        tests = data['specialties'][specialty].get('tests', [])
+
+        if not tests:
+            await update.message.reply_text("Нет вопросов для удаления.")
+            return await show_test_edit_menu(update, context)
+
+        await update.message.reply_text("Введите номер вопроса, который хотите удалить:")
+        return DELETE_QUESTION
+
     elif choice == "🔙 Назад в меню наставника":
         return await mentor_menu(update, context)
 
     else:
         await update.message.reply_text("Пожалуйста, выберите действие.")
         return EDIT_TEST_MENU
-
 
 
 async def choose_question_to_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -272,6 +296,32 @@ async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("Некорректный номер. Попробуйте снова.")
         return EDIT_EXISTING_QUESTION
+
+
+async def delete_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+
+    if text == "🔙 Назад в меню наставника":
+        return await show_test_edit_menu(update, context)
+
+    try:
+        index = int(text) - 1
+        specialty = context.user_data['edit_specialty']
+        data = load_data()
+        tests = data['specialties'][specialty]['tests']
+
+        if index < 0 or index >= len(tests):
+            raise ValueError
+
+        deleted = tests.pop(index)
+        save_data(data)
+
+        await update.message.reply_text(f"✅ Вопрос «{deleted['question']}» удалён.")
+        return await show_test_edit_menu(update, context)
+
+    except ValueError:
+        await update.message.reply_text("Некорректный номер. Попробуйте снова.")
+        return DELETE_QUESTION
 
 
 async def edit_question_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -354,7 +404,7 @@ async def show_test_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
             text += f"{i}. {q['question']} (Правильный: {q['correct']})\n"
 
     keyboard = [
-        ["➕ Добавить вопрос", "✏️ Редактировать вопрос"],
+        ["➕ Добавить вопрос", "✏️ Редактировать вопрос", "🗑 Удалить вопрос"],
         ["🔙 Назад в меню наставника"]
     ]
 
@@ -454,7 +504,7 @@ def main():
             CHOOSE_ROLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_role)],
             ENTER_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, enter_password)],
             CHOOSE_SPECIALTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty)],
-            MENTOR_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mentor_menu)],
+            MENTOR_MENU: [ MessageHandler(filters.Regex("^🔙 Назад$"), handle_mentor_menu),MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mentor_menu)],
             ADD_SPECIALTY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_name)],
             CHOOSE_SPECIALTY_FOR_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_for_edit)],
             EDIT_MATERIALS_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_materials)],
@@ -469,11 +519,11 @@ def main():
                 "вопрос": edit_question_text_prompt,
                 "варианты": edit_question_options_prompt,
                 "правильный": edit_question_correct_prompt
-            }.get(u.message.text.strip().lower(), lambda *_: u.message.reply_text("Выберите один из вариантов."))(u,
-                                                                                                                  c))],
+            }.get(u.message.text.strip().lower(), lambda *_: u.message.reply_text("Выберите один из вариантов."))(u, c))],
             EDIT_QUESTION_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_text)],
             EDIT_QUESTION_OPTIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_options)],
             EDIT_QUESTION_CORRECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_correct)],
+            DELETE_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, delete_question)],
 
         },
         fallbacks=[],
