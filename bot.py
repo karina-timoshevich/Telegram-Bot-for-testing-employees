@@ -36,7 +36,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-CHOOSE_ROLE, ENTER_PASSWORD, CHOOSE_SPECIALTY, MENTOR_MENU, EDIT_MATERIALS, EDIT_TESTS = range(6)
+CHOOSE_ROLE, ENTER_PASSWORD, CHOOSE_SPECIALTY_MENTOR, MENTOR_MENU, EDIT_MATERIALS, EDIT_TESTS = range(6)
 ADD_SPECIALTY_NAME = 6
 CHOOSE_SPECIALTY_FOR_EDIT = 7
 EDIT_MATERIALS_INPUT = 8
@@ -51,6 +51,8 @@ EDIT_QUESTION_TEXT = 16
 EDIT_QUESTION_OPTIONS = 17
 EDIT_QUESTION_CORRECT = 18
 DELETE_QUESTION = 19
+CHOOSE_SPECIALTY_EMPLOYEE, HANDLE_TEST_ANSWER = range(20, 22)
+CHOOSE_ACTION_AFTER_SPECIALTY = 1234
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -59,8 +61,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         resize_keyboard=True,
         one_time_keyboard=True
     )
+
     await update.message.reply_text(
-        "Привет! Выберите вашу роль:",
+        "Здравствуйте! Выберите вашу роль:",
         reply_markup=reply_markup
     )
     return CHOOSE_ROLE
@@ -76,8 +79,10 @@ async def choose_role(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
         )
         return ENTER_PASSWORD
+
     elif role == "сотрудник":
-        return await choose_specialty_prompt(update, context)
+        return await choose_specialty_prompt(update, context, for_employee=True)
+
     else:
         await update.message.reply_text("Пожалуйста, выберите одну из ролей.")
         return CHOOSE_ROLE
@@ -101,30 +106,28 @@ async def enter_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await mentor_menu(update, context)
     else:
         keyboard = ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
-        await update.message.reply_text("❌ Неверный пароль. Попробуйте снова или нажмите «🔙 Назад» для отмены:", reply_markup=keyboard)
+        await update.message.reply_text("❌ Неверный пароль. Попробуйте снова или нажмите «🔙 Назад» для отмены:",
+                                        reply_markup=keyboard)
         return ENTER_PASSWORD
 
 
-async def choose_specialty_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    specialties = ["Продажи", "Маркетинг", "IT"]
+async def choose_specialty_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE, for_employee=True):
+    data = load_data()
+    specialties = list(data['specialties'].keys())
     reply_markup = ReplyKeyboardMarkup(
         [[spec] for spec in specialties],
         resize_keyboard=True,
         one_time_keyboard=True
     )
-    await update.message.reply_text(
-        "Выберите вашу специальность:",
-        reply_markup=reply_markup
-    )
-    return CHOOSE_SPECIALTY
+    await update.message.reply_text("Выберите вашу специальность:", reply_markup=reply_markup)
+    return CHOOSE_SPECIALTY_EMPLOYEE if for_employee else CHOOSE_SPECIALTY_MENTOR
 
 
-async def choose_specialty(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def choose_specialty_mentor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     specialty = update.message.text
     context.user_data['specialty'] = specialty
-    await update.message.reply_text(
-        f"📚 Отлично! Вы выбрали специальность: {specialty}.\nСкоро тут будут материалы и тесты.")
-    return ConversationHandler.END
+    await update.message.reply_text(f"📚 Отлично! Вы выбрали специальность: {specialty}.\nСкоро тут будут материалы и тесты.")
+    return MENTOR_MENU
 
 
 async def mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -169,7 +172,7 @@ async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TY
         data = load_data()
         specialties = list(data['specialties'].keys())
         keyboard = [[spec] for spec in specialties]
-        keyboard.append(["🔙 Назад"])  
+        keyboard.append(["🔙 Назад"])
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
         await update.message.reply_text(
@@ -507,39 +510,209 @@ async def edit_question_correct_prompt(update: Update, context: ContextTypes.DEF
     return EDIT_QUESTION_CORRECT
 
 
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+
+
+async def choose_specialty_employee(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    specialty = update.message.text
+    context.user_data['specialty'] = specialty
+    data = load_data()
+    tests = data['specialties'].get(specialty, {}).get('tests', [])
+    materials = data['specialties'].get(specialty, {}).get('materials', "Материалы отсутствуют")
+    context.user_data['tests'] = tests
+    context.user_data['materials'] = materials
+
+    keyboard = [["📚 Получить материалы", "📝 Пройти аттестацию"]]
+    await update.message.reply_text(
+        f"Вы выбрали специальность «{specialty}». Что хотите сделать дальше?",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+
+    return CHOOSE_ACTION_AFTER_SPECIALTY
+
+
+async def handle_action_after_specialty(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    choice = update.message.text
+
+    if choice == "📚 Получить материалы":
+        materials = context.user_data.get('materials', "Материалы отсутствуют.")
+        await update.message.reply_text(materials, reply_markup=ReplyKeyboardRemove())
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    elif choice == "📝 Пройти аттестацию":
+        tests = context.user_data.get('tests', [])
+        if not tests:
+            await update.message.reply_text("❗️ Тестов по этой специальности пока нет.",
+                                            reply_markup=ReplyKeyboardRemove())
+            context.user_data.clear()
+            return await ask_test_question(update.message, context)
+
+        context.user_data['test_index'] = 0
+        context.user_data['correct_answers'] = 0
+        return await ask_test_question(update.message, context)
+
+    else:
+        await update.message.reply_text("Пожалуйста, выберите вариант из меню.")
+        return CHOOSE_ACTION_AFTER_SPECIALTY
+
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, ApplicationBuilder
+
+
+async def ask_test_question(message, context):
+    index = context.user_data.get('test_index', 0)
+    tests = context.user_data['tests']
+
+    if index >= len(tests):
+        return await show_test_result(message, context)
+
+    question_data = tests[index]
+    options = question_data['options']
+    selected = context.user_data.get('selected_options', set())
+
+    keyboard = []
+    for i, option in enumerate(options):
+        prefix = "✅ " if i in selected else ""
+        keyboard.append([InlineKeyboardButton(f"{prefix}{i + 1}) {option}", callback_data=f"toggle_{i}")])
+    keyboard.append([InlineKeyboardButton("Готово", callback_data="done")])
+
+    await message.reply_text(
+        f"❓ Вопрос {index + 1}:\n{question_data['question']}",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return HANDLE_TEST_ANSWER
+
+
+async def handle_test_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    selected = context.user_data.get('selected_options', set())
+
+    if data.startswith("toggle_"):
+        option_index = int(data.split("_")[1])
+        if option_index in selected:
+            selected.remove(option_index)
+        else:
+            selected.add(option_index)
+        context.user_data['selected_options'] = selected
+        index = context.user_data['test_index']
+        question_data = context.user_data['tests'][index]
+        options = question_data['options']
+
+        keyboard = []
+        for i, option in enumerate(options):
+            prefix = "✅ " if i in selected else ""
+            keyboard.append([InlineKeyboardButton(f"{prefix}{i + 1}) {option}", callback_data=f"toggle_{i}")])
+        keyboard.append([InlineKeyboardButton("Готово", callback_data="done")])
+
+        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+
+        return HANDLE_TEST_ANSWER
+
+    elif data == "done":
+        index = context.user_data['test_index']
+        tests = context.user_data['tests']
+        question_data = tests[index]
+
+        correct_indices = set(i - 1 for i in question_data['correct'])
+        selected = context.user_data.get('selected_options', set())
+
+        if selected == correct_indices:
+            context.user_data['correct_answers'] = context.user_data.get('correct_answers', 0) + 1
+            feedback = "✅ Верно!"
+        else:
+            correct_opts = ", ".join([f"{i + 1}) {question_data['options'][i]}" for i in correct_indices])
+            feedback = f"❌ Неверно! Правильные ответы: {correct_opts}"
+
+        context.user_data['selected_options'] = set()
+        context.user_data['test_index'] = index + 1
+
+        await query.edit_message_text(feedback)
+        await ask_test_question(query.message, context)
+        return HANDLE_TEST_ANSWER
+
+
+async def show_test_result(message, context):
+    total = len(context.user_data['tests'])
+    correct = context.user_data['correct_answers']
+    incorrect = total - correct
+
+    msg = f"Тест завершён!\nПравильных ответов: {correct} из {total}."
+    if incorrect > 2:
+        msg += "\n❗️ Количество неправильных ответов больше 2 — пересдача."
+
+    await message.reply_text(
+        msg,
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            CHOOSE_ROLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_role)],
-            ENTER_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, enter_password)],
-            CHOOSE_SPECIALTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty)],
-            MENTOR_MENU: [ MessageHandler(filters.Regex("^🔙 Назад$"), handle_mentor_menu),MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mentor_menu)],
-            ADD_SPECIALTY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_name)],
-            CHOOSE_SPECIALTY_FOR_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_for_edit)],
-            EDIT_MATERIALS_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_materials)],
-            CHOOSE_SPECIALTY_FOR_TEST_EDIT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_for_test_edit)],
-            EDIT_TEST_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_test_menu)],
-            ADD_TEST_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_question)],
-            ADD_TEST_OPTIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_options)],
-            ADD_TEST_CORRECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_correct)],
-            EDIT_EXISTING_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_edit_type)],
-            CHOOSE_EDIT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, lambda u, c: {
-                "вопрос": edit_question_text_prompt,
-                "варианты": edit_question_options_prompt,
-                "правильный": edit_question_correct_prompt
-            }.get(u.message.text.strip().lower(), lambda *_: u.message.reply_text("Выберите один из вариантов."))(u, c))],
-            EDIT_QUESTION_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_text)],
-            EDIT_QUESTION_OPTIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_options)],
-            EDIT_QUESTION_CORRECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_correct)],
-            DELETE_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, delete_question)],
+    conv_handler = ConversationHandler(allow_reentry=True,
+                                       entry_points=[CommandHandler("start", start)],
+                                       states={
 
-        },
-        fallbacks=[],
-    )
+                                           CHOOSE_ROLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_role)],
+                                           ENTER_PASSWORD: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, enter_password)],
+                                           CHOOSE_SPECIALTY_MENTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_mentor)],
+                                           MENTOR_MENU: [MessageHandler(filters.Regex("^🔙 Назад$"), handle_mentor_menu),
+                                                         MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                                                        handle_mentor_menu)],
+                                           ADD_SPECIALTY_NAME: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_name)],
+                                           CHOOSE_SPECIALTY_FOR_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                                                                      choose_specialty_for_edit)],
+                                           EDIT_MATERIALS_INPUT: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_materials)],
+                                           CHOOSE_SPECIALTY_FOR_TEST_EDIT: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                                              choose_specialty_for_test_edit)],
+                                           EDIT_TEST_MENU: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, handle_test_menu)],
+                                           ADD_TEST_QUESTION: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_question)],
+                                           ADD_TEST_OPTIONS: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_options)],
+                                           ADD_TEST_CORRECT: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_correct)],
+                                           EDIT_EXISTING_QUESTION: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, choose_edit_type)],
+                                           CHOOSE_EDIT_TYPE: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, lambda u, c: {
+                                                   "вопрос": edit_question_text_prompt,
+                                                   "варианты": edit_question_options_prompt,
+                                                   "правильный": edit_question_correct_prompt
+                                               }.get(u.message.text.strip().lower(),
+                                                     lambda *_: u.message.reply_text("Выберите один из вариантов."))(u,
+                                                                                                                     c))],
+                                           EDIT_QUESTION_TEXT: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_text)],
+                                           EDIT_QUESTION_OPTIONS: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_options)],
+                                           EDIT_QUESTION_CORRECT: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_correct)],
+                                           DELETE_QUESTION: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, delete_question)],
+                                           CHOOSE_SPECIALTY_EMPLOYEE: [MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                                                                      choose_specialty_employee)],
+
+                                           CHOOSE_ACTION_AFTER_SPECIALTY: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                                              handle_action_after_specialty)],
+                                           HANDLE_TEST_ANSWER: [CallbackQueryHandler(handle_test_answer)],
+
+                                       },
+                                       fallbacks=[],
+                                       )
 
     app.add_handler(conv_handler)
 
