@@ -1,7 +1,6 @@
 import logging
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler,
-    ContextTypes, ConversationHandler
+    ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ConversationHandler
 )
 from dotenv import load_dotenv
 from handlers.mentor import *

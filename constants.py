@@ -19,3 +19,9 @@ CHOOSE_SPECIALTY_EMPLOYEE, HANDLE_TEST_ANSWER = range(20, 22)
 CHOOSE_ACTION_AFTER_SPECIALTY = 1234
 
 DATA_FILE = 'data.json'
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MENTOR_PASSWORD = os.getenv("ADMIN_PASSWORD")
