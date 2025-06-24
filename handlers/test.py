@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from constants import *
 from data_utils import load_data, save_data
@@ -83,14 +83,22 @@ async def show_test_result(message, context):
     correct = context.user_data['correct_answers']
     incorrect = total - correct
 
+    # Create the reply keyboard markup
+    keyboard = [
+        ["📚 Получить материалы"],
+        ["📝 Пройти аттестацию"],
+        ["🔙 К выбору специальности"],
+        ["🏠 В главное меню"]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
     msg = f"Тест завершён!\nПравильных ответов: {correct} из {total}."
     if incorrect > 2:
         msg += "\n❗️ Количество неправильных ответов больше 2 — пересдача."
 
     await message.reply_text(
         msg,
-        reply_markup=ReplyKeyboardRemove()
+        reply_markup=reply_markup  # Use the keyboard we created
     )
 
-    context.user_data.clear()
-    return ConversationHandler.END
+    return CHOOSE_AFTER_MATERIALS

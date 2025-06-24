@@ -5,7 +5,7 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from handlers.mentor import *
 from handlers.common import start, choose_role
-from handlers.employee import choose_specialty_employee, handle_action_after_specialty
+from handlers.employee import choose_specialty_employee, handle_action_after_specialty, handle_after_materials
 from handlers.test import handle_test_answer
 load_dotenv()
 
@@ -73,8 +73,19 @@ def main():
                                            CHOOSE_ACTION_AFTER_SPECIALTY: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND,
                                                               handle_action_after_specialty)],
-                                           HANDLE_TEST_ANSWER: [CallbackQueryHandler(handle_test_answer)],
+                                           HANDLE_TEST_ANSWER: [
+                                               CallbackQueryHandler(handle_test_answer),
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, handle_after_materials),
+                                           ],
 
+                                           ADD_SPECIALTY_TYPE: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_type)
+                                           ],
+                                           CHOOSE_PARENT_SPECIALTY: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, choose_parent_specialty)
+                                           ],
+                                           CHOOSE_AFTER_MATERIALS: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, handle_after_materials)],
                                        },
                                        fallbacks=[],
                                        )

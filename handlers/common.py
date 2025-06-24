@@ -2,6 +2,7 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
 from constants import *
 from data_utils import load_data, save_data
+from handlers.employee import choose_specialty_prompt_employee
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -30,7 +31,7 @@ async def choose_role(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ENTER_PASSWORD
 
     elif role == "сотрудник":
-        return await choose_specialty_prompt(update, context, for_employee=True)
+        return await choose_specialty_prompt_employee(update, context)
 
     else:
         await update.message.reply_text("Пожалуйста, выберите одну из ролей.")
