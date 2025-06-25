@@ -69,13 +69,18 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Специальностей пока нет, добавьте их сначала.")
             return MENTOR_MENU
 
-        # Формируем текст со списком специальностей
         specialties_text = "📋 Список доступных специальностей:\n\n" + \
                            "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
                            "\n\nВведите номер специальности для редактирования материалов:"
 
-        await update.message.reply_text(specialties_text, reply_markup=ReplyKeyboardRemove())
-        context.user_data['specialties_list'] = specialties  # Сохраняем список для проверки
+        keyboard = ReplyKeyboardMarkup(
+            [["🔙 Назад"]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+
+        await update.message.reply_text(specialties_text, reply_markup=keyboard)
+        context.user_data['specialties_list'] = specialties
         return CHOOSE_SPECIALTY_FOR_EDIT
 
     elif choice == "📝 Редактировать тесты":
@@ -85,13 +90,18 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Специальностей пока нет, сначала добавьте их.")
             return MENTOR_MENU
 
-        # Формируем текст со списком специальностей
         specialties_text = "📋 Список доступных специальностей:\n\n" + \
                            "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
                            "\n\nВведите номер специальности для редактирования тестов:"
 
-        await update.message.reply_text(specialties_text, reply_markup=ReplyKeyboardRemove())
-        context.user_data['specialties_list'] = specialties  # Сохраняем список для проверки
+        keyboard = ReplyKeyboardMarkup(
+            [["🔙 Назад"]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+
+        await update.message.reply_text(specialties_text, reply_markup=keyboard)
+        context.user_data['specialties_list'] = specialties
         return CHOOSE_SPECIALTY_FOR_TEST_EDIT
 
     elif choice == "🔙 Выйти в главное меню":
@@ -126,7 +136,6 @@ async def add_specialty_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Нет существующих специальностей. Добавьте основную сначала.")
             return await mentor_menu(update, context)
 
-        # Формируем текст со списком специальностей
         specialties_text = "📋 Список доступных специальностей:\n\n" + \
                            "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
                            "\n\nВведите номер родительской специальности:"
@@ -134,8 +143,10 @@ async def add_specialty_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(specialties_text, reply_markup=ReplyKeyboardRemove())
         context.user_data['specialties_list'] = specialties  # Сохраняем список для проверки
         return CHOOSE_PARENT_SPECIALTY
+
     elif choice == "🔙 Назад":
         return await mentor_menu(update, context)
+
     else:
         await update.message.reply_text("Выберите один из предложенных вариантов.")
         return ADD_SPECIALTY_TYPE
@@ -216,9 +227,10 @@ async def choose_specialty_for_edit(update: Update, context: ContextTypes.DEFAUL
         materials = data['specialties'][specialty].get('materials', '')
         await update.message.reply_text(
             f"Текущие материалы по «{specialty}»:\n\n{materials if materials else 'Материалы отсутствуют.'}\n\n"
-            "✍️ Введите новые материалы (или 'назад' для отмены):",
-            reply_markup=ReplyKeyboardRemove()
+            "✍️ Введите новые материалы или нажмите кнопку ниже для отмены:",
+            reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
         )
+
         return EDIT_MATERIALS_INPUT
 
     except ValueError:
@@ -238,7 +250,8 @@ async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TY
                            "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
                            "\n\nВведите номер специальности для редактирования материалов:"
 
-        await update.message.reply_text(specialties_text, reply_markup=ReplyKeyboardRemove())
+        keyboard = ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text(specialties_text, reply_markup=keyboard)
         context.user_data['specialties_list'] = specialties
         return CHOOSE_SPECIALTY_FOR_EDIT
 
@@ -304,7 +317,8 @@ async def choose_question_to_edit(update: Update, context: ContextTypes.DEFAULT_
         questions_text += block
 
     questions_text += "Введите номер вопроса, который хотите отредактировать:"
-    await update.message.reply_text(questions_text, reply_markup=ReplyKeyboardRemove())
+    keyboard = ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text(questions_text, reply_markup=keyboard)
     return EDIT_EXISTING_QUESTION
 
 
@@ -312,7 +326,7 @@ async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
 
     if text == "🔙 Назад":
-        return await choose_question_to_edit(update, context)
+        return await mentor_menu(update, context)
 
     try:
         index = int(text) - 1
@@ -330,7 +344,6 @@ async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("Некорректный номер. Попробуйте снова или нажмите «🔙 Назад».")
         return EDIT_EXISTING_QUESTION
-
 
 
 async def delete_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
