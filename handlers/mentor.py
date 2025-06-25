@@ -290,21 +290,32 @@ async def choose_question_to_edit(update: Update, context: ContextTypes.DEFAULT_
     data = load_data()
     tests = data['specialties'][specialty].get('tests', [])
 
-    try:
-        if not tests:
-            await update.message.reply_text("Нет вопросов для редактирования.")
-            return await show_test_edit_menu(update, context)
+    if not tests:
+        await update.message.reply_text("Нет вопросов для редактирования.")
+        return await show_test_edit_menu(update, context)
 
-        await update.message.reply_text("Введите номер вопроса, который хотите отредактировать:")
-        return EDIT_EXISTING_QUESTION
-    except Exception as e:
-        await update.message.reply_text("Ошибка при выборе вопроса.")
-        return EDIT_TEST_MENU
+    questions_text = "📝 Список вопросов для редактирования:\n\n"
+    for i, q in enumerate(tests):
+        question = f"{i + 1}. {q['question']}\n"
+        options = "\n".join([f"   {j + 1}) {opt}" for j, opt in enumerate(q['options'])])
+        correct = q['correct']
+        correct_str = ", ".join(str(c) for c in correct) if isinstance(correct, list) else str(correct)
+        block = f"{question}{options}\n   ✅ Правильные: {correct_str}\n\n"
+        questions_text += block
+
+    questions_text += "Введите номер вопроса, который хотите отредактировать:"
+    await update.message.reply_text(questions_text, reply_markup=ReplyKeyboardRemove())
+    return EDIT_EXISTING_QUESTION
 
 
 async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+
+    if text == "🔙 Назад":
+        return await choose_question_to_edit(update, context)
+
     try:
-        index = int(update.message.text.strip()) - 1
+        index = int(text) - 1
         specialty = context.user_data['edit_specialty']
         data = load_data()
         tests = data['specialties'][specialty]['tests']
@@ -317,34 +328,32 @@ async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
         return CHOOSE_EDIT_TYPE
     except:
-        await update.message.reply_text("Некорректный номер. Попробуйте снова.")
+        await update.message.reply_text("Некорректный номер. Попробуйте снова или нажмите «🔙 Назад».")
         return EDIT_EXISTING_QUESTION
 
 
+
 async def delete_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
+    specialty = context.user_data['edit_specialty']
+    data = load_data()
+    tests = data['specialties'][specialty].get('tests', [])
 
-    if text == "🔙 Назад в меню наставника":
+    if not tests:
+        await update.message.reply_text("Нет вопросов для удаления.")
         return await show_test_edit_menu(update, context)
 
-    try:
-        index = int(text) - 1
-        specialty = context.user_data['edit_specialty']
-        data = load_data()
-        tests = data['specialties'][specialty]['tests']
+    text = "🗑 Список вопросов для удаления:\n\n"
+    for i, q in enumerate(tests):
+        question = f"{i + 1}. {q['question']}\n"
+        options = "\n".join([f"   {j + 1}) {opt}" for j, opt in enumerate(q['options'])])
+        correct = q['correct']
+        correct_str = ", ".join(str(c) for c in correct) if isinstance(correct, list) else str(correct)
+        text += f"{question}{options}\n   ✅ Правильные: {correct_str}\n\n"
 
-        if index < 0 or index >= len(tests):
-            raise ValueError
+    text += "Введите номер вопроса, который хотите удалить:"
+    await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
+    return DELETE_QUESTION
 
-        deleted = tests.pop(index)
-        save_data(data)
-
-        await update.message.reply_text(f"✅ Вопрос «{deleted['question']}» удалён.")
-        return await show_test_edit_menu(update, context)
-
-    except ValueError:
-        await update.message.reply_text("Некорректный номер. Попробуйте снова.")
-        return DELETE_QUESTION
 
 
 async def edit_question_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -375,20 +384,24 @@ async def edit_question_options(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def edit_question_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        correct = int(update.message.text.strip())
+        raw = update.message.text.strip()
+        indexes = [int(x.strip()) - 1 for x in raw.replace(',', ' ').split()]
         specialty = context.user_data['edit_specialty']
         index = context.user_data['edit_index']
         options = load_data()['specialties'][specialty]['tests'][index]['options']
-        if correct < 1 or correct > len(options):
+
+        if any(i < 0 or i >= len(options) for i in indexes):
             raise ValueError
 
         data = load_data()
-        data['specialties'][specialty]['tests'][index]['correct'] = correct
+        data['specialties'][specialty]['tests'][index]['correct'] = [i + 1 for i in indexes]
         save_data(data)
-        await update.message.reply_text("✅ Правильный ответ обновлён.")
+
+        await update.message.reply_text("✅ Правильные ответы обновлены.")
         return await show_test_edit_menu(update, context)
+
     except:
-        await update.message.reply_text("Некорректный номер.")
+        await update.message.reply_text("Некорректный ввод. Введите номера через пробел или запятую.")
         return EDIT_QUESTION_CORRECT
 
 
@@ -402,7 +415,12 @@ async def show_test_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         text = "📝 Список текущих вопросов:\n"
         for i, q in enumerate(tests, 1):
-            text += f"{i}. {q['question']} (Правильный: {q['correct']})\n"
+            correct_answers = q['correct']
+            if isinstance(correct_answers, list):
+                correct_text = ", ".join(str(c) for c in correct_answers)
+            else:
+                correct_text = str(correct_answers)
+            text += f"{i}. {q['question']} (Правильные: {correct_text})\n"
 
     keyboard = [
         ["➕ Добавить вопрос", "✏️ Редактировать вопрос", "🗑 Удалить вопрос"],
@@ -455,19 +473,24 @@ async def add_test_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ADD_TEST_OPTIONS
 
     context.user_data['new_options'] = options
-    reply_markup = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(options))], resize_keyboard=True)
-    await update.message.reply_text("Выберите номер правильного варианта:", reply_markup=reply_markup)
+    await update.message.reply_text(
+        "Введите номера правильных ответов через пробел или запятую (например: `1 3` или `2,4`):",
+        reply_markup=ReplyKeyboardRemove()
+    )
     return ADD_TEST_CORRECT
+
 
 
 async def add_test_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        correct_index = int(update.message.text.strip()) - 1
+        raw = update.message.text.strip()
+        indexes = [int(x.strip()) - 1 for x in raw.replace(',', ' ').split()]
         options = context.user_data['new_options']
-        if not (0 <= correct_index < len(options)):
+
+        if any(i < 0 or i >= len(options) for i in indexes):
             raise ValueError
     except ValueError:
-        await update.message.reply_text("Некорректный номер. Попробуйте снова.")
+        await update.message.reply_text("Некорректный ввод. Введите номера через пробел или запятую.")
         return ADD_TEST_CORRECT
 
     specialty = context.user_data['edit_specialty']
@@ -477,7 +500,7 @@ async def add_test_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_test = {
         "question": context.user_data['new_question'],
         "options": options,
-        "correct": correct_index + 1
+        "correct": [i + 1 for i in indexes]
     }
     tests.append(new_test)
     data['specialties'][specialty]['tests'] = tests
@@ -503,5 +526,9 @@ async def edit_question_correct_prompt(update: Update, context: ContextTypes.DEF
     data = load_data()
     options = data['specialties'][specialty]['tests'][index]['options']
     keyboard = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(options))], resize_keyboard=True)
-    await update.message.reply_text("Выберите номер правильного варианта:", reply_markup=keyboard)
+    await update.message.reply_text(
+        "Введите номера правильных ответов через пробел или запятую:",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
     return EDIT_QUESTION_CORRECT

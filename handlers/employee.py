@@ -13,7 +13,6 @@ async def choose_specialty_prompt_employee(update: Update, context: ContextTypes
         await update.message.reply_text("На данный момент нет доступных специальностей.")
         return ConversationHandler.END
 
-    # Формируем текст со списком специальностей
     specialties_text = "📋 Доступные специальности:\n\n" + \
                        "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
                        "\n\nВведите номер специальности (или 'назад' для отмены):"

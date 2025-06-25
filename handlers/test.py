@@ -83,7 +83,6 @@ async def show_test_result(message, context):
     correct = context.user_data['correct_answers']
     incorrect = total - correct
 
-    # Create the reply keyboard markup
     keyboard = [
         ["📚 Получить материалы"],
         ["📝 Пройти аттестацию"],

@@ -17,6 +17,21 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+async def handle_edit_type_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip().lower()
+
+    if text == "вопрос":
+        return await edit_question_text_prompt(update, context)
+    elif text == "варианты":
+        return await edit_question_options_prompt(update, context)
+    elif text == "правильный":
+        return await edit_question_correct_prompt(update, context)
+    elif text == "🔙 назад":
+        return await choose_question_to_edit(update, context)
+    else:
+        await update.message.reply_text("Выберите один из вариантов.")
+        return CHOOSE_EDIT_TYPE
+
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
@@ -52,13 +67,8 @@ def main():
                                            EDIT_EXISTING_QUESTION: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, choose_edit_type)],
                                            CHOOSE_EDIT_TYPE: [
-                                               MessageHandler(filters.TEXT & ~filters.COMMAND, lambda u, c: {
-                                                   "вопрос": edit_question_text_prompt,
-                                                   "варианты": edit_question_options_prompt,
-                                                   "правильный": edit_question_correct_prompt
-                                               }.get(u.message.text.strip().lower(),
-                                                     lambda *_: u.message.reply_text("Выберите один из вариантов."))(u,
-                                                                                                                     c))],
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_type_choice)
+                                           ],
                                            EDIT_QUESTION_TEXT: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, edit_question_text)],
                                            EDIT_QUESTION_OPTIONS: [
