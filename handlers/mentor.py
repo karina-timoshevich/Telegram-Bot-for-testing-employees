@@ -368,7 +368,6 @@ async def delete_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return DELETE_QUESTION
 
 
-
 async def edit_question_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     specialty = context.user_data['edit_specialty']
@@ -441,7 +440,6 @@ async def show_test_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
 
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
     await update.message.reply_text(text, reply_markup=reply_markup)
     return EDIT_TEST_MENU
 
@@ -493,18 +491,33 @@ async def add_test_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ADD_TEST_CORRECT
 
 
-
 async def add_test_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         raw = update.message.text.strip()
         indexes = [int(x.strip()) - 1 for x in raw.replace(',', ' ').split()]
         options = context.user_data['new_options']
-
         if any(i < 0 or i >= len(options) for i in indexes):
             raise ValueError
     except ValueError:
         await update.message.reply_text("Некорректный ввод. Введите номера через пробел или запятую.")
         return ADD_TEST_CORRECT
+
+    context.user_data['new_correct'] = [i + 1 for i in indexes]
+    await update.message.reply_text(
+        "Хотите прикрепить изображение к вопросу? Отправьте картинку или нажмите «Пропустить».",
+        reply_markup=ReplyKeyboardMarkup([["Пропустить"]], resize_keyboard=True)
+    )
+    return ADD_TEST_IMAGE
+
+
+async def add_test_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "Пропустить":
+        image_id = None
+    elif update.message.photo:
+        image_id = update.message.photo[-1].file_id
+    else:
+        await update.message.reply_text("Пожалуйста, отправьте изображение или нажмите «Пропустить».")
+        return ADD_TEST_IMAGE
 
     specialty = context.user_data['edit_specialty']
     data = load_data()
@@ -512,14 +525,16 @@ async def add_test_correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     new_test = {
         "question": context.user_data['new_question'],
-        "options": options,
-        "correct": [i + 1 for i in indexes]
+        "options": context.user_data['new_options'],
+        "correct": context.user_data['new_correct'],
+        "image": image_id
     }
+
     tests.append(new_test)
     data['specialties'][specialty]['tests'] = tests
     save_data(data)
 
-    await update.message.reply_text("✅ Вопрос успешно добавлен!", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("✅ Вопрос с изображением добавлен.")
     return await show_test_edit_menu(update, context)
 
 
@@ -539,9 +554,9 @@ async def edit_question_correct_prompt(update: Update, context: ContextTypes.DEF
     data = load_data()
     options = data['specialties'][specialty]['tests'][index]['options']
     keyboard = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(options))], resize_keyboard=True)
+
     await update.message.reply_text(
         "Введите номера правильных ответов через пробел или запятую:",
         reply_markup=ReplyKeyboardRemove()
     )
-
     return EDIT_QUESTION_CORRECT

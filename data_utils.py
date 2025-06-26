@@ -1,6 +1,7 @@
 from constants import *
 import json
 
+
 def load_data():
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as f:

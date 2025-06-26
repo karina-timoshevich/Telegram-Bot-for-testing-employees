@@ -73,6 +73,7 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
     if choice == "🔙 назад":
         await update.message.reply_text("Возвращаемся к выбору специальности...")
         return await choose_specialty_prompt_employee(update, context)
+
     elif choice == "📚 получить материалы":
         materials = context.user_data.get('materials', "Материалы отсутствуют.")
 
@@ -88,6 +89,7 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
             reply_markup=reply_markup
         )
         return CHOOSE_AFTER_MATERIALS
+
     elif choice == "📝 пройти аттестацию":
         tests = context.user_data.get('tests', [])
         if not tests:
@@ -108,7 +110,6 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
 async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.message.text.strip().lower()
 
-    # Удаляем эмодзи и лишние пробелы для сравнения
     clean_choice = ''.join(c for c in choice if c.isalpha() or c.isspace()).strip().lower()
     print('CLEAN CHOICE ', clean_choice)
     if clean_choice == "пройти аттестацию":

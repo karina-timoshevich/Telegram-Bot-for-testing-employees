@@ -96,6 +96,11 @@ def main():
                                            ],
                                            CHOOSE_AFTER_MATERIALS: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_after_materials)],
+                                           ADD_TEST_IMAGE: [
+                                               MessageHandler(filters.PHOTO, add_test_image),
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_image)
+                                           ]
+
                                        },
                                        fallbacks=[],
                                        )
