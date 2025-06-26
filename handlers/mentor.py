@@ -287,8 +287,8 @@ async def handle_test_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Нет вопросов для удаления.")
             return await show_test_edit_menu(update, context)
 
-        await update.message.reply_text("Введите номер вопроса, который хотите удалить:")
-        return DELETE_QUESTION
+        return await show_questions_for_deletion(update, context)
+
 
     elif choice == "🔙 Назад в меню наставника":
         return await mentor_menu(update, context)
@@ -346,7 +346,7 @@ async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return EDIT_EXISTING_QUESTION
 
 
-async def delete_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_questions_for_deletion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     specialty = context.user_data['edit_specialty']
     data = load_data()
     tests = data['specialties'][specialty].get('tests', [])
@@ -366,6 +366,30 @@ async def delete_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += "Введите номер вопроса, который хотите удалить:"
     await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
     return DELETE_QUESTION
+
+
+async def delete_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    specialty = context.user_data.get('edit_specialty')
+    data = load_data()
+    tests = data['specialties'][specialty].get('tests', [])
+
+    if text.lower() == "назад":
+        return await show_test_edit_menu(update, context)
+
+    try:
+        index = int(text) - 1
+        if index < 0 or index >= len(tests):
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Некорректный номер. Введите правильный номер вопроса или «Назад» для отмены.")
+        return DELETE_QUESTION
+
+    removed_question = tests.pop(index)
+    save_data(data)
+
+    await update.message.reply_text(f"✅ Вопрос №{index + 1} удалён.")
+    return await show_test_edit_menu(update, context)
 
 
 async def edit_question_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
