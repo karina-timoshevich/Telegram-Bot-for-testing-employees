@@ -17,21 +17,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-async def handle_edit_type_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip().lower()
-
-    if text == "вопрос":
-        return await edit_question_text_prompt(update, context)
-    elif text == "варианты":
-        return await edit_question_options_prompt(update, context)
-    elif text == "правильный":
-        return await edit_question_correct_prompt(update, context)
-    elif text == "🔙 назад":
-        return await choose_question_to_edit(update, context)
-    else:
-        await update.message.reply_text("Выберите один из вариантов.")
-        return CHOOSE_EDIT_TYPE
-
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
@@ -79,7 +64,6 @@ def main():
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, delete_question)],
                                            CHOOSE_SPECIALTY_EMPLOYEE: [MessageHandler(filters.TEXT & ~filters.COMMAND,
                                                                                       choose_specialty_employee)],
-
                                            CHOOSE_ACTION_AFTER_SPECIALTY: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND,
                                                               handle_action_after_specialty)],
@@ -87,7 +71,6 @@ def main():
                                                CallbackQueryHandler(handle_test_answer),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_after_materials),
                                            ],
-
                                            ADD_SPECIALTY_TYPE: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_type)
                                            ],
@@ -96,11 +79,14 @@ def main():
                                            ],
                                            CHOOSE_AFTER_MATERIALS: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_after_materials)],
+                                           EDIT_QUESTION_IMAGE: [
+                                               MessageHandler(filters.PHOTO | filters.TEXT & ~filters.COMMAND,
+                                                              handle_edit_question_image)
+                                           ],
                                            ADD_TEST_IMAGE: [
                                                MessageHandler(filters.PHOTO, add_test_image),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_image)
                                            ]
-
                                        },
                                        fallbacks=[],
                                        )

@@ -141,7 +141,7 @@ async def add_specialty_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
                            "\n\nВведите номер родительской специальности:"
 
         await update.message.reply_text(specialties_text, reply_markup=ReplyKeyboardRemove())
-        context.user_data['specialties_list'] = specialties  # Сохраняем список для проверки
+        context.user_data['specialties_list'] = specialties
         return CHOOSE_PARENT_SPECIALTY
 
     elif choice == "🔙 Назад":
@@ -289,7 +289,6 @@ async def handle_test_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return await show_questions_for_deletion(update, context)
 
-
     elif choice == "🔙 Назад в меню наставника":
         return await mentor_menu(update, context)
 
@@ -322,6 +321,83 @@ async def choose_question_to_edit(update: Update, context: ContextTypes.DEFAULT_
     return EDIT_EXISTING_QUESTION
 
 
+async def handle_edit_type_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip().lower()
+
+    if text == "вопрос":
+        return await edit_question_text_prompt(update, context)
+    elif text == "варианты":
+        return await edit_question_options_prompt(update, context)
+    elif text == "правильный":
+        return await edit_question_correct_prompt(update, context)
+    elif text == "🔙 назад":
+        return await choose_question_to_edit(update, context)
+    elif text == "🖼 изображение":
+        return await edit_question_image_prompt(update, context)
+    else:
+        await update.message.reply_text("Выберите один из вариантов.")
+        return CHOOSE_EDIT_TYPE
+
+
+async def edit_question_image_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    specialty = context.user_data['edit_specialty']
+    index = context.user_data['edit_index']
+    data = load_data()
+    question_data = data['specialties'][specialty]['tests'][index]
+    current_image = question_data.get("image")
+
+    if current_image:
+        await update.message.reply_photo(
+            photo=current_image,
+            caption="Текущее изображение прикреплено к вопросу.\n\nОтправьте новое изображение или нажмите «Удалить» / «Оставить как есть».",
+            reply_markup=ReplyKeyboardMarkup(
+                [["Удалить", "Оставить как есть", "🔙 Назад"]],
+                resize_keyboard=True
+            )
+        )
+    else:
+        await update.message.reply_text(
+            "К этому вопросу не прикреплено изображение.\n\nОтправьте изображение или нажмите «🔙 Назад».",
+            reply_markup=ReplyKeyboardMarkup(
+                [["🔙 Назад"]],
+                resize_keyboard=True
+            )
+        )
+
+    return EDIT_QUESTION_IMAGE
+
+
+async def handle_edit_question_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    specialty = context.user_data['edit_specialty']
+    index = context.user_data['edit_index']
+    data = load_data()
+    question_data = data['specialties'][specialty]['tests'][index]
+
+    if update.message.text == "Удалить":
+        question_data['image'] = None
+        save_data(data)
+        await update.message.reply_text("✅ Изображение удалено.")
+        return await show_test_edit_menu(update, context)
+
+    elif update.message.text == "Оставить как есть":
+        await update.message.reply_text("Изображение не изменено.")
+        return await show_test_edit_menu(update, context)
+
+    elif update.message.photo:
+        file_id = update.message.photo[-1].file_id
+        question_data['image'] = file_id
+        save_data(data)
+        await update.message.reply_text("✅ Изображение обновлено.")
+        return await show_test_edit_menu(update, context)
+
+    elif update.message.text == "🔙 Назад":
+        return await choose_edit_type(update, context)
+
+    else:
+        await update.message.reply_text("Пожалуйста, отправьте изображение или выберите вариант.")
+        return EDIT_QUESTION_IMAGE
+
+
 async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
 
@@ -337,7 +413,9 @@ async def choose_edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError
 
         context.user_data['edit_index'] = index
-        keyboard = [["Вопрос", "Варианты", "Правильный"], ["🔙 Назад"]]
+        keyboard = [["Вопрос", "Варианты", "Правильный"],
+                    ["🖼 Изображение"], ["🔙 Назад"]]
+
         await update.message.reply_text("Что хотите изменить?",
                                         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
         return CHOOSE_EDIT_TYPE
