@@ -37,7 +37,16 @@ def main():
                                            CHOOSE_SPECIALTY_FOR_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND,
                                                                                       choose_specialty_for_edit)],
                                            EDIT_MATERIALS_INPUT: [
-                                               MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_materials)],
+                                               MessageHandler(filters.TEXT & filters.Regex("^🗑 Удалить файл$"),
+                                                              prompt_file_deletion),
+                                               MessageHandler(filters.Regex("^🔙 Назад$"), mentor_menu),
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_materials),
+                                               MessageHandler(filters.Document.ALL, save_edited_materials)
+                                           ],
+                                           HANDLE_MENTOR_FILE_DELETE: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                                              handle_mentor_file_delete)
+                                           ],
                                            CHOOSE_SPECIALTY_FOR_TEST_EDIT: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND,
                                                               choose_specialty_for_test_edit)],

@@ -68,14 +68,22 @@ async def choose_specialty_employee(update: Update, context: ContextTypes.DEFAUL
 
 
 async def handle_action_after_specialty(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    choice = update.message.text.strip().lower()
+    choice = update.message.text.strip()
 
-    if choice == "🔙 назад":
-        await update.message.reply_text("Возвращаемся к выбору специальности...")
+    if choice == "🔙 Назад":
+        await update.message.reply_text("Возвращаемся к выбору специальности...",
+                                     reply_markup=ReplyKeyboardRemove())
         return await choose_specialty_prompt_employee(update, context)
 
-    elif choice == "📚 получить материалы":
+    elif choice == "📚 Получить материалы":
         materials = context.user_data.get('materials', "Материалы отсутствуют.")
+        specialty = context.user_data.get('specialty')
+        data = load_data()
+        attachments = data['specialties'][specialty].get("attachments", [])
+
+        await update.message.reply_text(materials)
+        for doc in attachments:
+            await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
 
         keyboard = [
             ["📝 Пройти аттестацию"],
@@ -83,14 +91,10 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
             ["🏠 В главное меню"]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-        await update.message.reply_text(
-            materials,
-            reply_markup=reply_markup
-        )
+        await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
         return CHOOSE_AFTER_MATERIALS
 
-    elif choice == "📝 пройти аттестацию":
+    elif choice == "📝 Пройти аттестацию":
         tests = context.user_data.get('tests', [])
         if not tests:
             await update.message.reply_text(
@@ -108,11 +112,9 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
 
 
 async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    choice = update.message.text.strip().lower()
+    choice = update.message.text.strip()
 
-    clean_choice = ''.join(c for c in choice if c.isalpha() or c.isspace()).strip().lower()
-    print('CLEAN CHOICE ', clean_choice)
-    if clean_choice == "пройти аттестацию":
+    if choice == "📝 Пройти аттестацию":
         tests = context.user_data.get('tests', [])
         if not tests:
             await update.message.reply_text(
@@ -125,8 +127,15 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
         context.user_data['correct_answers'] = 0
         return await ask_test_question(update.message, context)
 
-    elif clean_choice == "получить материалы":
+    elif choice == "📚 Получить материалы":
         materials = context.user_data.get('materials', "Материалы отсутствуют.")
+        specialty = context.user_data.get('specialty')
+        data = load_data()
+        attachments = data['specialties'][specialty].get("attachments", [])
+
+        await update.message.reply_text(materials)
+        for doc in attachments:
+            await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
 
         keyboard = [
             ["📝 Пройти аттестацию"],
@@ -134,17 +143,16 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
             ["🏠 В главное меню"]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-        await update.message.reply_text(
-            materials,
-            reply_markup=reply_markup
-        )
+        await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
         return CHOOSE_AFTER_MATERIALS
 
-    elif clean_choice == "к выбору специальности":
+    elif choice == "🔙 К выбору специальности":
+        # Очищаем флаг отправки материалов перед возвратом
+        if 'materials_sent' in context.user_data:
+            del context.user_data['materials_sent']
         return await choose_specialty_prompt_employee(update, context)
 
-    elif clean_choice == "в главное меню":
+    elif choice == "🏠 В главное меню":
         context.user_data.clear()
         from .common import start
         return await start(update, context)

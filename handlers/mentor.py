@@ -225,11 +225,25 @@ async def choose_specialty_for_edit(update: Update, context: ContextTypes.DEFAUL
 
         context.user_data['edit_specialty'] = specialty
         materials = data['specialties'][specialty].get('materials', '')
-        await update.message.reply_text(
-            f"Текущие материалы по «{specialty}»:\n\n{materials if materials else 'Материалы отсутствуют.'}\n\n"
-            "✍️ Введите новые материалы или нажмите кнопку ниже для отмены:",
-            reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
-        )
+        attachments = data['specialties'][specialty].get('attachments', [])
+
+        text_block = f"Текущие материалы по «{specialty}»:\n\n"
+        if materials:
+            text_block += materials + "\n\n"
+        if attachments:
+            text_block += "📎 Прикреплённые файлы:\n" + "\n".join(
+                [f"{i + 1}. {f['file_name']}" for i, f in enumerate(attachments)]
+            ) + "\n\n"
+
+        text_block += "✍️ Введите новые материалы или нажмите кнопку ниже для отмены:"
+
+        keyboard_buttons = [["🔙 Назад"]]
+        if attachments:
+            keyboard_buttons.insert(0, ["🗑 Удалить файл"])
+
+        reply_markup = ReplyKeyboardMarkup(keyboard_buttons, resize_keyboard=True, one_time_keyboard=True)
+
+        await update.message.reply_text(text_block, reply_markup=reply_markup)
 
         return EDIT_MATERIALS_INPUT
 
@@ -239,33 +253,131 @@ async def choose_specialty_for_edit(update: Update, context: ContextTypes.DEFAUL
 
 
 async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    new_text = update.message.text.strip()
-
-    if new_text.lower() == "назад":
-        await update.message.reply_text("Редактирование отменено.")
-
-        data = load_data()
-        specialties = list(data['specialties'].keys())
-        specialties_text = "📋 Список доступных специальностей:\n\n" + \
-                           "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
-                           "\n\nВведите номер специальности для редактирования материалов:"
-
-        keyboard = ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
-        await update.message.reply_text(specialties_text, reply_markup=keyboard)
-        context.user_data['specialties_list'] = specialties
-        return CHOOSE_SPECIALTY_FOR_EDIT
-
     specialty = context.user_data.get('edit_specialty')
     if not specialty:
         await update.message.reply_text("Произошла ошибка, попробуйте снова.")
         return MENTOR_MENU
 
     data = load_data()
+
+    if update.message.document:
+        file_id = update.message.document.file_id
+        file_name = update.message.document.file_name
+        attachments = data['specialties'][specialty].setdefault("attachments", [])
+        attachments.append({
+            "file_id": file_id,
+            "file_name": file_name
+        })
+
+        save_data(data)
+
+        keyboard = [
+            ["🗑 Удалить файл"],
+            ["🔙 Назад"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        await update.message.reply_text(
+            f"✅ Файл «{file_name}» добавлен к материалам.\n\n"
+            f"Вы можете прикрепить ещё файл или удалить старые.",
+            reply_markup=reply_markup
+        )
+        return EDIT_MATERIALS_INPUT
+
+    new_text = update.message.text.strip()
+    if new_text.lower() == "назад":
+        return await mentor_menu(update, context)
+
     data['specialties'][specialty]['materials'] = new_text
     save_data(data)
 
-    await update.message.reply_text(f"✅ Материалы по «{specialty}» успешно обновлены!")
-    return await mentor_menu(update, context)
+    keyboard = [
+        ["🗑 Удалить файл"],
+        ["🔙 Назад"]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+    await update.message.reply_text(
+        f"✅ Материалы по «{specialty}» обновлены.\n\n"
+        f"Вы можете прикрепить файл или удалить старые.",
+        reply_markup=reply_markup
+    )
+    return EDIT_MATERIALS_INPUT
+
+
+async def prompt_file_deletion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    specialty = context.user_data.get('edit_specialty')
+    data = load_data()
+    attachments = data['specialties'][specialty].get("attachments", [])
+
+    if not attachments:
+        await update.message.reply_text("❌ Нет прикреплённых файлов.")
+        return EDIT_MATERIALS_INPUT
+
+    context.user_data['attachments'] = attachments
+    file_list = "\n".join([f"{i + 1}. {file['file_name']}" for i, file in enumerate(attachments)])
+
+    reply_markup = ReplyKeyboardMarkup(
+        [["❌ Отмена"]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+    await update.message.reply_text(
+        f"📂 Файлы по специальности «{specialty}»:\n\n{file_list}\n\n"
+        "Введите номер файла для удаления или нажмите «❌ Отмена»:",
+        reply_markup=reply_markup
+    )
+    return HANDLE_MENTOR_FILE_DELETE
+
+
+async def handle_mentor_file_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip().lower()
+
+    if text in ["отмена", "❌ отмена"]:
+        keyboard = [
+            ["🗑 Удалить файл"],
+            ["🔙 Назад"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        await update.message.reply_text(
+            "❌ Удаление отменено.\n\nВы можете прикрепить файл или удалить старые.",
+            reply_markup=reply_markup
+        )
+        return EDIT_MATERIALS_INPUT
+
+    try:
+        index = int(text) - 1
+        attachments = context.user_data.get('attachments', [])
+        if index < 0 or index >= len(attachments):
+            raise ValueError
+
+        deleted = attachments.pop(index)
+        specialty = context.user_data.get('edit_specialty')
+        data = load_data()
+        data['specialties'][specialty]['attachments'] = attachments
+        save_data(data)
+
+        keyboard = [
+            ["🗑 Удалить файл"],
+            ["🔙 Назад"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        await update.message.reply_text(
+            f"✅ Файл «{deleted['file_name']}» удалён.\n\n"
+            f"Вы можете удалить ещё один файл или вернуться назад.",
+            reply_markup=reply_markup
+        )
+        return EDIT_MATERIALS_INPUT
+
+
+    except ValueError:
+        await update.message.reply_text(
+            "⚠️ Неверный номер. Введите номер файла или нажмите «❌ Отмена»:"
+        )
+        return HANDLE_MENTOR_FILE_DELETE
 
 
 async def handle_test_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
