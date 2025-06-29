@@ -81,9 +81,14 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
         data = load_data()
         attachments = data['specialties'][specialty].get("attachments", [])
 
-        await update.message.reply_text(materials)
-        for doc in attachments:
-            await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
+        text_to_send = materials.strip() if materials.strip() else "Материалы"
+        await update.message.reply_text(text_to_send)
+
+        if attachments:
+            for doc in attachments:
+                await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
+        else:
+            await update.message.reply_text("📭 Прикрепленные файлы пока отсутствуют.")
 
         keyboard = [
             ["📝 Пройти аттестацию"],
@@ -136,9 +141,14 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
         data = load_data()
         attachments = data['specialties'][specialty].get("attachments", [])
 
-        await update.message.reply_text(materials)
-        for doc in attachments:
-            await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
+        text_to_send = materials.strip() if materials.strip() else "Материалы"
+        await update.message.reply_text(text_to_send)
+
+        if attachments:
+            for doc in attachments:
+                await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
+        else:
+            await update.message.reply_text("📭 Прикрепленные файлы пока отсутствуют.")
 
         keyboard = [
             ["📝 Пройти аттестацию"],
