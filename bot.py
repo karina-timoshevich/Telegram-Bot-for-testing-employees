@@ -95,7 +95,21 @@ def main():
                                            ADD_TEST_IMAGE: [
                                                MessageHandler(filters.PHOTO, add_test_image),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_image)
-                                           ]
+                                           ],
+                                           RENAME_SPECIALTY_SELECT: [
+                                               MessageHandler(filters.Regex("^🔙 Назад$"), mentor_menu),
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, rename_specialty),
+                                           ],
+                                           RENAME_SPECIALTY_INPUT: [
+                                               MessageHandler(filters.Regex("^🔙 Назад$"), mentor_menu),
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, apply_specialty_rename),
+                                           ],
+
+                                           DELETE_SPECIALTY_SELECT: [
+                                               MessageHandler(filters.TEXT & filters.Regex("^🔙 Назад$"), mentor_menu),
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, delete_specialty)
+                                           ],
+
                                        },
                                        fallbacks=[],
                                        )

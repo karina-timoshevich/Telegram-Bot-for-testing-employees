@@ -41,8 +41,11 @@ async def mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [KeyboardButton("📚 Редактировать материалы")],
         [KeyboardButton("📝 Редактировать тесты")],
         [KeyboardButton("➕ Добавить специальность")],
+        [KeyboardButton("✏️ Переименовать специальность")],
+        [KeyboardButton("🗑 Удалить специальность")],
         [KeyboardButton("🔙 Назад")]
     ]
+
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("Вы в меню наставника. Выберите действие:", reply_markup=reply_markup)
     return MENTOR_MENU
@@ -110,6 +113,12 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif choice == "➕ Добавить специальность":
         return await add_specialty_start(update, context)
 
+    elif choice == "✏️ Переименовать специальность":
+        return await prompt_rename_specialty(update, context)
+
+    elif choice == "🗑 Удалить специальность":
+        return await prompt_delete_specialty(update, context)
+
     else:
         await update.message.reply_text("Пожалуйста, выберите пункт из меню.")
         return MENTOR_MENU
@@ -150,6 +159,108 @@ async def add_specialty_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         await update.message.reply_text("Выберите один из предложенных вариантов.")
         return ADD_SPECIALTY_TYPE
+
+
+async def prompt_rename_specialty(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = load_data()
+    specialties = list(data['specialties'].keys())
+
+    if not specialties:
+        await update.message.reply_text("Нет доступных специальностей.")
+        return await mentor_menu(update, context)
+
+    text = "🔧 Выберите специальность для переименования:\n\n" + \
+           "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
+           "\n\nВведите номер специальности:"
+    keyboard = ReplyKeyboardMarkup([["🔙 Назад"]],
+                                   resize_keyboard=True,
+                                   input_field_placeholder="Введите номер или нажмите «Назад»")
+    await update.message.reply_text(text, reply_markup=keyboard)
+
+    context.user_data['specialties_list'] = specialties
+    return RENAME_SPECIALTY_SELECT
+
+
+async def rename_specialty(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    specialties = context.user_data.get("specialties_list", [])
+
+    try:
+        index = int(text) - 1
+        if index < 0 or index >= len(specialties):
+            raise ValueError
+        context.user_data['old_name'] = specialties[index]
+        keyboard = ReplyKeyboardMarkup(
+            [["🔙 Назад"]],
+            resize_keyboard=True,
+            input_field_placeholder="Введите новое имя или нажмите «Назад»"
+        )
+        await update.message.reply_text("Введите новое имя специальности:", reply_markup=keyboard)
+
+        return RENAME_SPECIALTY_INPUT
+    except ValueError:
+        await update.message.reply_text("Неверный номер. Попробуйте ещё раз.")
+        return RENAME_SPECIALTY_SELECT
+
+
+async def apply_specialty_rename(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    new_name = update.message.text.strip()
+    old_name = context.user_data.get("old_name")
+
+    data = load_data()
+    if new_name in data['specialties']:
+        await update.message.reply_text("❗️ Такая специальность уже есть. Введите другое имя.")
+        return RENAME_SPECIALTY_INPUT
+
+    data['specialties'][new_name] = data['specialties'].pop(old_name)
+    save_data(data)
+
+    await update.message.reply_text(f"✅ Специальность переименована: «{old_name}» → «{new_name}».")
+    return await mentor_menu(update, context)
+
+
+async def prompt_delete_specialty(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = load_data()
+    specialties = list(data['specialties'].keys())
+
+    if not specialties:
+        await update.message.reply_text("❌ Нет специальностей для удаления.")
+        return await mentor_menu(update, context)
+
+    context.user_data['specialties_list'] = specialties
+
+    text = "🗑 Выберите номер специальности для удаления:\n\n" + \
+           "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)])
+
+    keyboard = ReplyKeyboardMarkup(
+        [["🔙 Назад"]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+    await update.message.reply_text(text, reply_markup=keyboard)
+    return DELETE_SPECIALTY_SELECT
+
+
+async def delete_specialty(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    specialties = context.user_data.get("specialties_list", [])
+
+    try:
+        index = int(text) - 1
+        if index < 0 or index >= len(specialties):
+            raise ValueError
+        name = specialties[index]
+
+        data = load_data()
+        del data['specialties'][name]
+        save_data(data)
+
+        await update.message.reply_text(f"🗑 Специальность «{name}» успешно удалена.")
+        return await mentor_menu(update, context)
+    except ValueError:
+        await update.message.reply_text("Неверный номер. Попробуйте ещё раз.")
+        return DELETE_SPECIALTY_SELECT
 
 
 async def choose_parent_specialty(update: Update, context: ContextTypes.DEFAULT_TYPE):
