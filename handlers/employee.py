@@ -105,6 +105,7 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
 
         context.user_data['test_index'] = 0
         context.user_data['correct_answers'] = 0
+        await update.message.reply_text("Начинаем тестирование...", reply_markup=ReplyKeyboardRemove())
         return await ask_test_question(update.message, context)
     else:
         await update.message.reply_text("Пожалуйста, выберите действие из меню.")
@@ -125,6 +126,8 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
 
         context.user_data['test_index'] = 0
         context.user_data['correct_answers'] = 0
+
+        await update.message.reply_text("Начинаем тестирование...", reply_markup=ReplyKeyboardRemove())
         return await ask_test_question(update.message, context)
 
     elif choice == "📚 Получить материалы":
@@ -147,7 +150,6 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
         return CHOOSE_AFTER_MATERIALS
 
     elif choice == "🔙 К выбору специальности":
-        # Очищаем флаг отправки материалов перед возвратом
         if 'materials_sent' in context.user_data:
             del context.user_data['materials_sent']
         return await choose_specialty_prompt_employee(update, context)
