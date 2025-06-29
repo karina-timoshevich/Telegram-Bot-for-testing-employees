@@ -149,7 +149,13 @@ async def add_specialty_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
                            "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
                            "\n\nВведите номер родительской специальности:"
 
-        await update.message.reply_text(specialties_text, reply_markup=ReplyKeyboardRemove())
+        keyboard = ReplyKeyboardMarkup(
+            [["🔙 Назад"]],
+            resize_keyboard=True,
+            input_field_placeholder="Введите номер или нажмите «Назад»"
+        )
+        await update.message.reply_text(specialties_text, reply_markup=keyboard)
+
         context.user_data['specialties_list'] = specialties
         return CHOOSE_PARENT_SPECIALTY
 
@@ -267,7 +273,7 @@ async def choose_parent_specialty(update: Update, context: ContextTypes.DEFAULT_
     text = update.message.text.strip()
     specialties = context.user_data.get('specialties_list', [])
 
-    if text.lower() == "назад":
+    if text == "🔙 Назад":
         return await add_specialty_start(update, context)
 
     try:
