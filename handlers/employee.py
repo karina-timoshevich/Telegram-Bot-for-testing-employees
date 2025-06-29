@@ -102,9 +102,15 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
     elif choice == "📝 Пройти аттестацию":
         tests = context.user_data.get('tests', [])
         if not tests:
+            keyboard = [
+                ["📚 Получить материалы"],
+                ["📝 Пройти аттестацию"],
+                ["🔙 К выбору специальности"],
+                ["🏠 В главное меню"]
+            ]
             await update.message.reply_text(
-                "❗️ Тестов по этой специальности пока нет.",
-                reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True)
+                "❗️ Тестов по этой специальности пока нет.\n\nВыберите другое действие:",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
             return CHOOSE_ACTION_AFTER_SPECIALTY
 
@@ -112,6 +118,17 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
         context.user_data['correct_answers'] = 0
         await update.message.reply_text("Начинаем тестирование...", reply_markup=ReplyKeyboardRemove())
         return await ask_test_question(update.message, context)
+
+    elif choice == "🔙 К выбору специальности":
+        if 'materials_sent' in context.user_data:
+            del context.user_data['materials_sent']
+        return await choose_specialty_prompt_employee(update, context)
+
+    elif choice == "🏠 В главное меню":
+        context.user_data.clear()
+        from .common import start
+        return await start(update, context)
+
     else:
         await update.message.reply_text("Пожалуйста, выберите действие из меню.")
         return CHOOSE_ACTION_AFTER_SPECIALTY
@@ -123,11 +140,17 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
     if choice == "📝 Пройти аттестацию":
         tests = context.user_data.get('tests', [])
         if not tests:
+            keyboard = [
+                ["📚 Получить материалы"],
+                ["📝 Пройти аттестацию"],
+                ["🔙 К выбору специальности"],
+                ["🏠 В главное меню"]
+            ]
             await update.message.reply_text(
-                "❗️ Тестов по этой специальности пока нет.",
-                reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True)
+                "❗️ Тестов по этой специальности пока нет.\n\nВыберите другое действие:",
+                reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
-            return CHOOSE_AFTER_MATERIALS
+            return CHOOSE_ACTION_AFTER_SPECIALTY
 
         context.user_data['test_index'] = 0
         context.user_data['correct_answers'] = 0
