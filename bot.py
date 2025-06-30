@@ -105,7 +105,6 @@ def main():
                                                MessageHandler(filters.Regex("^🔙 Назад$"), mentor_menu),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, apply_specialty_rename),
                                            ],
-
                                            DELETE_SPECIALTY_SELECT: [
                                                MessageHandler(filters.TEXT & filters.Regex("^🔙 Назад$"), mentor_menu),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, delete_specialty)

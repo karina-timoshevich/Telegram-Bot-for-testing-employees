@@ -1,7 +1,7 @@
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 from constants import *
-from data_utils import load_data, save_data
+from data_utils import load_data, save_data, send_full_report
 from .common import start
 
 
@@ -43,6 +43,7 @@ async def mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [KeyboardButton("➕ Добавить специальность")],
         [KeyboardButton("✏️ Переименовать специальность")],
         [KeyboardButton("🗑 Удалить специальность")],
+        [KeyboardButton("📊 Сводный отчёт")],
         [KeyboardButton("🔙 Назад")]
     ]
 
@@ -118,6 +119,9 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     elif choice == "🗑 Удалить специальность":
         return await prompt_delete_specialty(update, context)
+
+    elif choice == "📊 Сводный отчёт":
+        return await send_full_report(update, context)
 
     else:
         await update.message.reply_text("Пожалуйста, выберите пункт из меню.")

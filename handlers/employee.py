@@ -211,7 +211,7 @@ async def receive_employee_fio(update: Update, context: ContextTypes.DEFAULT_TYP
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
-        return CHOOSE_AFTER_MATERIALS  # или CHOOSE_ACTION_AFTER_SPECIALTY — зависит от того, откуда пришли
+        return CHOOSE_AFTER_MATERIALS
 
     if not text:
         await update.message.reply_text("ФИО не может быть пустым, введите, пожалуйста, корректно.")
