@@ -2,7 +2,7 @@ import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from constants import *
-from data_utils import load_data, save_data
+from data_utils import load_data, save_data, add_result
 
 
 async def ask_test_question(message, context):
@@ -129,6 +129,13 @@ async def show_test_result(message, context):
     total = len(context.user_data['tests'])
     correct = context.user_data['correct_answers']
     incorrect = total - correct
+
+    fio = context.user_data.get("employee_fio", "Неизвестный сотрудник")
+    specialty = context.user_data.get("specialty", "Неизвестная специальность")
+    username = context.user_data.get("telegram_username", "—")
+    user_id = context.user_data.get("telegram_id", "—")
+
+    add_result(fio, specialty, correct, total, username=username, user_id=user_id)
 
     keyboard = [
         ["📚 Получить материалы"],

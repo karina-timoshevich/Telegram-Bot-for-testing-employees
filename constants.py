@@ -26,10 +26,10 @@ HANDLE_MENTOR_FILE_DELETE = 27
 RENAME_SPECIALTY_SELECT = 28
 RENAME_SPECIALTY_INPUT = 29
 DELETE_SPECIALTY_SELECT = 30
-
+ENTER_EMPLOYEE_NAME = 1000
 
 DATA_FILE = 'data.json'
-import os
+
 from dotenv import load_dotenv
 
 load_dotenv()

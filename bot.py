@@ -5,7 +5,8 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from handlers.mentor import *
 from handlers.common import start, choose_role
-from handlers.employee import choose_specialty_employee, handle_action_after_specialty, handle_after_materials
+from handlers.employee import choose_specialty_employee, handle_action_after_specialty, handle_after_materials, \
+    receive_employee_fio
 from handlers.test import handle_test_answer
 load_dotenv()
 
@@ -109,6 +110,8 @@ def main():
                                                MessageHandler(filters.TEXT & filters.Regex("^🔙 Назад$"), mentor_menu),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, delete_specialty)
                                            ],
+                                           ENTER_EMPLOYEE_NAME: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, receive_employee_fio)],
 
                                        },
                                        fallbacks=[],

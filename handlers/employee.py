@@ -113,11 +113,7 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
             return CHOOSE_ACTION_AFTER_SPECIALTY
-
-        context.user_data['test_index'] = 0
-        context.user_data['correct_answers'] = 0
-        await update.message.reply_text("Начинаем тестирование...", reply_markup=ReplyKeyboardRemove())
-        return await ask_test_question(update.message, context)
+        return await ask_employee_fio(update, context)
 
     elif choice == "🔙 К выбору специальности":
         if 'materials_sent' in context.user_data:
@@ -151,12 +147,7 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
                 reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             )
             return CHOOSE_ACTION_AFTER_SPECIALTY
-
-        context.user_data['test_index'] = 0
-        context.user_data['correct_answers'] = 0
-
-        await update.message.reply_text("Начинаем тестирование...", reply_markup=ReplyKeyboardRemove())
-        return await ask_test_question(update.message, context)
+        return await ask_employee_fio(update, context)
 
     elif choice == "📚 Получить материалы":
         materials = context.user_data.get('materials', "Материалы отсутствуют.")
@@ -195,3 +186,45 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await update.message.reply_text("Пожалуйста, выберите действие из меню.")
         return CHOOSE_AFTER_MATERIALS
+
+
+async def ask_employee_fio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [["🔙 Назад"]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    await update.message.reply_text(
+        "Пожалуйста, введите ваше ФИО для начала теста (или нажмите «🔙 Назад»):",
+        reply_markup=reply_markup
+    )
+    return ENTER_EMPLOYEE_NAME
+
+
+async def receive_employee_fio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+
+    if text == "🔙 Назад":
+        keyboard = [
+            ["📚 Получить материалы"],
+            ["📝 Пройти аттестацию"],
+            ["🔙 К выбору специальности"],
+            ["🏠 В главное меню"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
+        return CHOOSE_AFTER_MATERIALS  # или CHOOSE_ACTION_AFTER_SPECIALTY — зависит от того, откуда пришли
+
+    if not text:
+        await update.message.reply_text("ФИО не может быть пустым, введите, пожалуйста, корректно.")
+        return ENTER_EMPLOYEE_NAME
+
+    context.user_data['employee_fio'] = text
+    context.user_data['telegram_username'] = update.message.from_user.username or "—"
+    context.user_data['telegram_id'] = update.message.from_user.id
+
+    context.user_data['test_index'] = 0
+    context.user_data['correct_answers'] = 0
+
+    await update.message.reply_text(f"Спасибо, {text}. Начинаем тестирование!", reply_markup=ReplyKeyboardRemove())
+    from handlers.test import ask_test_question
+    return await ask_test_question(update.message, context)
+
