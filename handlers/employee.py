@@ -2,12 +2,13 @@ from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, ConversationHandler
 from constants import *
 from data_utils import load_data
+from handlers.common import filter_specialties_with_subtypes
 from handlers.test import ask_test_question
 
 
 async def choose_specialty_prompt_employee(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
-    specialties = list(data['specialties'].keys())
+    specialties = filter_specialties_with_subtypes(data)
 
     if not specialties:
         await update.message.reply_text("На данный момент нет доступных специальностей.")
