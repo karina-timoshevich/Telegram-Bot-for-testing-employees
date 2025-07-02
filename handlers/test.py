@@ -21,10 +21,14 @@ async def ask_test_question(message, context):
 
     question_data = tests[index]
     options = question_data['options']
+    options_text = "\n\n".join([f"{i + 1}) {opt}" for i, opt in enumerate(options)])
+    text = f"❓ Вопрос {index + 1}:\n{question_data['question']}\n\n{options_text}"
+
     selected = context.user_data.get('selected_options', set())
 
-    keyboard = [[InlineKeyboardButton(f"{'✅ ' if i in selected else ''}{i + 1}) {opt}", callback_data=f"toggle_{i}")]
-                for i, opt in enumerate(options)]
+    keyboard = [[InlineKeyboardButton(f"{'✅ ' if i in selected else ''}{i + 1}", callback_data=f"toggle_{i}")]
+                for i in range(len(options))]
+
     keyboard.append([InlineKeyboardButton("Готово", callback_data="done")])
     markup = InlineKeyboardMarkup(keyboard)
 
@@ -32,13 +36,13 @@ async def ask_test_question(message, context):
         sent = await context.bot.send_photo(
             chat_id=message.chat.id,
             photo=question_data['image'],
-            caption=f"❓ Вопрос {index + 1}:\n{question_data['question']}",
+            caption=text,
             reply_markup=markup
         )
     else:
         sent = await context.bot.send_message(
             chat_id=message.chat.id,
-            text=f"❓ Вопрос {index + 1}:\n{question_data['question']}",
+            text=text,
             reply_markup=markup
         )
 
@@ -65,10 +69,8 @@ async def handle_test_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         question_data = context.user_data['tests'][index]
         options = question_data['options']
 
-        keyboard = []
-        for i, option in enumerate(options):
-            prefix = "✅ " if i in selected else ""
-            keyboard.append([InlineKeyboardButton(f"{prefix}{i + 1}) {option}", callback_data=f"toggle_{i}")])
+        keyboard = [[InlineKeyboardButton(f"{'✅ ' if i in selected else ''}{i + 1}", callback_data=f"toggle_{i}")]
+                    for i in range(len(options))]
         keyboard.append([InlineKeyboardButton("Готово", callback_data="done")])
 
         await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))

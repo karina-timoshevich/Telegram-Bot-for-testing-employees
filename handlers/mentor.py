@@ -20,7 +20,12 @@ async def enter_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return CHOOSE_ROLE
 
     if text == MENTOR_PASSWORD:
+        try:
+            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+        except:
+            pass
         return await mentor_menu(update, context)
+
     else:
         keyboard = ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
         await update.message.reply_text("❌ Неверный пароль. Попробуйте снова или нажмите «🔙 Назад» для отмены:",
