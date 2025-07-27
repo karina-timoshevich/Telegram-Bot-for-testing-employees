@@ -1,17 +1,21 @@
 import logging
+import os
+
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ConversationHandler
 )
 from dotenv import load_dotenv
-from handlers.mentor import *
+from handlers.admin import *
 from handlers.common import start, choose_role
 from handlers.employee import choose_specialty_employee, handle_action_after_specialty, handle_after_materials, \
     receive_employee_fio
+from handlers.mentor import enter_password_mentor, mentor_menu, handle_mentor_menu
 from handlers.test import handle_test_answer
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-MENTOR_PASSWORD = os.getenv("ADMIN_PASSWORD")
+MENTOR_PASSWORD = os.getenv("MENTOR_PASSWORD")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -29,10 +33,15 @@ def main():
                                            CHOOSE_ROLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_role)],
                                            ENTER_PASSWORD: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, enter_password)],
-                                           CHOOSE_SPECIALTY_MENTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_mentor)],
+                                           ENTER_PASSWORD_MENTOR: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, enter_password_mentor)],
+                                           CHOOSE_SPECIALTY_ADMIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, choose_specialty_admin)],
+                                           ADMIN_MENU: [MessageHandler(filters.Regex("^🔙 Назад$"), handle_admin_menu),
+                                                        MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                                                       handle_admin_menu)],
                                            MENTOR_MENU: [MessageHandler(filters.Regex("^🔙 Назад$"), handle_mentor_menu),
-                                                         MessageHandler(filters.TEXT & ~filters.COMMAND,
-                                                                        handle_mentor_menu)],
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, handle_mentor_menu)
+                                           ],
                                            ADD_SPECIALTY_NAME: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_name)],
                                            CHOOSE_SPECIALTY_FOR_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND,
@@ -40,13 +49,13 @@ def main():
                                            EDIT_MATERIALS_INPUT: [
                                                MessageHandler(filters.TEXT & filters.Regex("^🗑 Удалить файл$"),
                                                               prompt_file_deletion),
-                                               MessageHandler(filters.Regex("^🔙 Назад$"), mentor_menu),
+                                               MessageHandler(filters.Regex("^🔙 Назад$"), admin_menu),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_materials),
                                                MessageHandler(filters.Document.ALL, save_edited_materials)
                                            ],
-                                           HANDLE_MENTOR_FILE_DELETE: [
+                                           HANDLE_ADMIN_FILE_DELETE: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND,
-                                                              handle_mentor_file_delete)
+                                                              handle_admin_file_delete)
                                            ],
                                            CHOOSE_SPECIALTY_FOR_TEST_EDIT: [
                                                MessageHandler(filters.TEXT & ~filters.COMMAND,
@@ -98,15 +107,15 @@ def main():
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, add_test_image)
                                            ],
                                            RENAME_SPECIALTY_SELECT: [
-                                               MessageHandler(filters.Regex("^🔙 Назад$"), mentor_menu),
+                                               MessageHandler(filters.Regex("^🔙 Назад$"), admin_menu),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, rename_specialty),
                                            ],
                                            RENAME_SPECIALTY_INPUT: [
-                                               MessageHandler(filters.Regex("^🔙 Назад$"), mentor_menu),
+                                               MessageHandler(filters.Regex("^🔙 Назад$"), admin_menu),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, apply_specialty_rename),
                                            ],
                                            DELETE_SPECIALTY_SELECT: [
-                                               MessageHandler(filters.TEXT & filters.Regex("^🔙 Назад$"), mentor_menu),
+                                               MessageHandler(filters.TEXT & filters.Regex("^🔙 Назад$"), admin_menu),
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, delete_specialty)
                                            ],
                                            ENTER_EMPLOYEE_NAME: [

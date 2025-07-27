@@ -6,7 +6,7 @@ from data_utils import load_data, save_data
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup(
-        [["Сотрудник", "Наставник"]],
+        [["Ученик", "Наставник", "Админ"]],
         resize_keyboard=True,
         one_time_keyboard=True
     )
@@ -24,14 +24,21 @@ async def choose_role(update: Update, context: ContextTypes.DEFAULT_TYPE):
     role = update.message.text.lower()
     context.user_data['role'] = role
 
-    if role == "наставник":
+    if role == "админ":
         await update.message.reply_text(
-            "Введите пароль для доступа к режиму наставника:",
+            "Введите пароль для доступа к режиму администратора:",
             reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
         )
         return ENTER_PASSWORD
 
-    elif role == "сотрудник":
+    elif role == "наставник":
+        await update.message.reply_text(
+            "Введите пароль для доступа к режиму наставника:",
+            reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
+        )
+        return ENTER_PASSWORD_MENTOR
+
+    elif role == "ученик":
         return await choose_specialty_prompt_employee(update, context)
 
     else:
@@ -48,7 +55,7 @@ async def choose_specialty_prompt(update: Update, context: ContextTypes.DEFAULT_
         one_time_keyboard=True
     )
     await update.message.reply_text("Выберите вашу специальность:", reply_markup=reply_markup)
-    return CHOOSE_SPECIALTY_EMPLOYEE if for_employee else CHOOSE_SPECIALTY_MENTOR
+    return CHOOSE_SPECIALTY_EMPLOYEE if for_employee else CHOOSE_SPECIALTY_ADMIN
 
 
 def filter_specialties_with_subtypes(data):

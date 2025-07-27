@@ -28,7 +28,7 @@ async def choose_specialty_employee(update: Update, context: ContextTypes.DEFAUL
     specialties = context.user_data.get('specialties_list', [])
 
     if text.lower() == "назад":
-        keyboard = [["Сотрудник", "Наставник"]]
+        keyboard = [["Ученик", "Наставник", "Админ"]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
             "Возвращаемся в главное меню. Выберите вашу роль:",
