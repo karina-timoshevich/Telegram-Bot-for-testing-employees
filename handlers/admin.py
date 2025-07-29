@@ -45,9 +45,7 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [KeyboardButton("📚 Редактировать материалы")],
         [KeyboardButton("📝 Редактировать тесты")],
-        [KeyboardButton("➕ Добавить специальность")],
-        [KeyboardButton("✏️ Переименовать специальность")],
-        [KeyboardButton("🗑 Удалить специальность")],
+        [KeyboardButton("⚙️ Корректировка специальностей")],
         [KeyboardButton("📊 Сводный отчёт")],
         [KeyboardButton("🔙 Назад")]
     ]
@@ -112,6 +110,17 @@ async def handle_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(specialties_text, reply_markup=keyboard)
         context.user_data['specialties_list'] = specialties
         return CHOOSE_SPECIALTY_FOR_TEST_EDIT
+
+    elif choice == "⚙️ Корректировка специальностей":
+        keyboard = [
+            ["➕ Добавить специальность"],
+            ["✏️ Переименовать специальность"],
+            ["🗑 Удалить специальность"],
+            ["🔙 Назад"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text("Выберите действие с специальностями:", reply_markup=reply_markup)
+        return ADMIN_MENU
 
     elif choice == "🔙 Выйти в главное меню":
         return await start(update, context)

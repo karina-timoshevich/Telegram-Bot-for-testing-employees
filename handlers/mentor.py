@@ -36,8 +36,9 @@ async def enter_password_mentor(update: Update, context: ContextTypes.DEFAULT_TY
 async def mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [KeyboardButton("📚 Теоретические материалы")],
-        [KeyboardButton("🗂 Учебные планы")],
-        [KeyboardButton("🧪 Практические задания")],
+        [KeyboardButton("🗂 УПД")],
+        [KeyboardButton("🧪 TWI – производственное обучение")],
+        [KeyboardButton("📊 Сводный отчёт")],
         [KeyboardButton("🔙 Назад")]
     ]
 
@@ -61,9 +62,11 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return CHOOSE_ROLE
     elif choice == "📚 Теоретические материалы":
         file_path = "mentor_content/theory.txt"
-    elif choice == "🗂 Учебные планы":
+    elif choice == "🗂 УПД":
         file_path = "mentor_content/plans.txt"
-    elif choice == "🧪 Практические задания":
+    elif choice == "🧪 TWI – производственное обучение":
+        file_path = "mentor_content/practice.txt"
+    elif choice == "📊 Сводный отчёт":
         file_path = "mentor_content/practice.txt"
     else:
         await update.message.reply_text("Пожалуйста, выберите пункт из меню.")
