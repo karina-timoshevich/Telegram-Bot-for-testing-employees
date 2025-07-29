@@ -1,8 +1,9 @@
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 from constants import *
-from data_utils import load_data, save_data, send_full_report
+from data_utils import load_data, save_data
 from .common import start
+from .reports import send_full_report
 
 
 async def enter_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -348,7 +349,7 @@ async def choose_parent_specialty(update: Update, context: ContextTypes.DEFAULT_
 async def add_specialty_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.message.text.strip()
     if name == "🔙 Назад":
-        return await add_specialty_start(update, context)  # Возвращаемся к выбору типа добавления
+        return await add_specialty_start(update, context)
 
     data = load_data()
 
@@ -981,7 +982,7 @@ async def handle_file_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard = [["🗑 Удалить файл"], ["🔙 Назад"]]
         await update.message.reply_text(text_msg, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
-        return EDIT_MATERIALS_INPUT  # можно использовать существующее состояние
+        return EDIT_MATERIALS_INPUT
     except:
         await update.message.reply_text("Некорректный номер. Попробуйте ещё раз.")
         return CHOOSE_SPECIALTY_FOR_EDIT_FILE

@@ -1,7 +1,8 @@
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 from constants import *
-from data_utils import load_data, save_data, send_full_report
+from data_utils import load_data, save_data
+from handlers.reports import send_full_report
 from .common import start
 
 
