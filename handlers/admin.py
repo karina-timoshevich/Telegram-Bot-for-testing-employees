@@ -43,13 +43,14 @@ async def choose_specialty_admin(update: Update, context: ContextTypes.DEFAULT_T
 
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
+        [KeyboardButton("📂 Редактировать УПД")],
+        [KeyboardButton("🧾 Редактировать TWI")],
         [KeyboardButton("📚 Редактировать материалы")],
         [KeyboardButton("📝 Редактировать тесты")],
         [KeyboardButton("⚙️ Корректировка специальностей")],
         [KeyboardButton("📊 Сводный отчёт")],
         [KeyboardButton("🔙 Назад")]
     ]
-
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("Вы в меню наставника. Выберите действие:", reply_markup=reply_markup)
     return ADMIN_MENU
@@ -58,6 +59,10 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.message.text.strip()
     if choice == "🔙 Назад":
+        if context.user_data.get("in_specialty_correction"):
+            context.user_data.pop("in_specialty_correction", None)
+            return await admin_menu(update, context)
+
         context.user_data.clear()
         await update.message.reply_text(
             "Вы вернулись к выбору роли.",
@@ -69,7 +74,17 @@ async def handle_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return CHOOSE_ROLE
 
+
+    elif choice == "📂 Редактировать УПД":
+        context.user_data.pop("in_specialty_correction", None)
+        return await choose_specialty_for_file_edit(update, context, file_key="upd_attachments", display_name="УПД")
+
+    elif choice == "🧾 Редактировать TWI":
+        context.user_data.pop("in_specialty_correction", None)
+        return await choose_specialty_for_file_edit(update, context, file_key="twi_attachments", display_name="TWI")
+
     elif choice == "📚 Редактировать материалы":
+        context.user_data.pop("in_specialty_correction", None)
         data = load_data()
         specialties = list(data['specialties'].keys())
         if not specialties:
@@ -91,6 +106,7 @@ async def handle_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return CHOOSE_SPECIALTY_FOR_EDIT
 
     elif choice == "📝 Редактировать тесты":
+        context.user_data.pop("in_specialty_correction", None)
         data = load_data()
         specialties = list(data['specialties'].keys())
         if not specialties:
@@ -112,6 +128,7 @@ async def handle_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return CHOOSE_SPECIALTY_FOR_TEST_EDIT
 
     elif choice == "⚙️ Корректировка специальностей":
+        context.user_data["in_specialty_correction"] = True
         keyboard = [
             ["➕ Добавить специальность"],
             ["✏️ Переименовать специальность"],
@@ -123,21 +140,27 @@ async def handle_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ADMIN_MENU
 
     elif choice == "🔙 Выйти в главное меню":
+        context.user_data.pop("in_specialty_correction", None)
         return await start(update, context)
 
     elif choice == "➕ Добавить специальность":
+        context.user_data.pop("in_specialty_correction", None)
         return await add_specialty_start(update, context)
 
     elif choice == "✏️ Переименовать специальность":
+        context.user_data.pop("in_specialty_correction", None)
         return await prompt_rename_specialty(update, context)
 
     elif choice == "🗑 Удалить специальность":
+        context.user_data.pop("in_specialty_correction", None)
         return await prompt_delete_specialty(update, context)
 
     elif choice == "📊 Сводный отчёт":
+        context.user_data.pop("in_specialty_correction", None)
         return await send_full_report(update, context)
 
     else:
+        context.user_data.pop("in_specialty_correction", None)
         await update.message.reply_text("Пожалуйста, выберите пункт из меню.")
         return ADMIN_MENU
 
@@ -154,7 +177,13 @@ async def add_specialty_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
     choice = update.message.text.strip()
     if choice == "➕ Новая специальность":
         context.user_data["add_type"] = "main"
-        await update.message.reply_text("Введите название новой специальности:", reply_markup=ReplyKeyboardRemove())
+        keyboard = ReplyKeyboardMarkup(
+            [["🔙 Назад"]],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+            input_field_placeholder="Введите название новой специальности или нажмите «Назад»"
+        )
+        await update.message.reply_text("Введите название новой специальности:", reply_markup=keyboard)
         return ADD_SPECIALTY_NAME
     elif choice == "📂 Подвид существующей":
         data = load_data()
@@ -318,6 +347,9 @@ async def choose_parent_specialty(update: Update, context: ContextTypes.DEFAULT_
 
 async def add_specialty_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.message.text.strip()
+    if name == "🔙 Назад":
+        return await add_specialty_start(update, context)  # Возвращаемся к выбору типа добавления
+
     data = load_data()
 
     if context.user_data.get("add_type") == "sub":
@@ -359,19 +391,18 @@ async def choose_specialty_for_edit(update: Update, context: ContextTypes.DEFAUL
             return CHOOSE_SPECIALTY_FOR_EDIT
 
         context.user_data['edit_specialty'] = specialty
-        materials = data['specialties'][specialty].get('materials', '')
+        context.user_data['current_file_key'] = "attachments"
+        context.user_data['edit_file_name'] = "материалы"
+
         attachments = data['specialties'][specialty].get('attachments', [])
 
-        text_block = f"Текущие материалы по «{specialty}»:\n\n"
-        if materials:
-            text_block += materials + "\n\n"
+        text_block = f"Текущие файлы по «{specialty}»:\n\n"
         if attachments:
             text_block += "📎 Прикреплённые файлы:\n" + "\n".join(
                 [f"{i + 1}. {f['file_name']}" for i, f in enumerate(attachments)]
             ) + "\n\n"
 
-        text_block += ("✍️ Введите новое текстовое описание материалов, отправьте файлы или нажмите кнопку ниже для "
-                       "отмены:")
+        text_block += "Отправьте файл или нажмите кнопку ниже для отмены:"
 
         keyboard_buttons = [["🔙 Назад"]]
         if attachments:
@@ -380,7 +411,6 @@ async def choose_specialty_for_edit(update: Update, context: ContextTypes.DEFAUL
         reply_markup = ReplyKeyboardMarkup(keyboard_buttons, resize_keyboard=True, one_time_keyboard=True)
 
         await update.message.reply_text(text_block, reply_markup=reply_markup)
-
         return EDIT_MATERIALS_INPUT
 
     except ValueError:
@@ -390,6 +420,9 @@ async def choose_specialty_for_edit(update: Update, context: ContextTypes.DEFAUL
 
 async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TYPE):
     specialty = context.user_data.get('edit_specialty')
+    file_key = context.user_data.get("current_file_key", "attachments")
+    display_name = context.user_data.get("edit_file_name", "материалы")
+
     if not specialty:
         await update.message.reply_text("Произошла ошибка, попробуйте снова.")
         return ADMIN_MENU
@@ -399,7 +432,7 @@ async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TY
     if update.message.document:
         file_id = update.message.document.file_id
         file_name = update.message.document.file_name
-        attachments = data['specialties'][specialty].setdefault("attachments", [])
+        attachments = data['specialties'][specialty].setdefault(file_key, [])
         attachments.append({
             "file_id": file_id,
             "file_name": file_name
@@ -414,37 +447,27 @@ async def save_edited_materials(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
         await update.message.reply_text(
-            f"✅ Файл «{file_name}» добавлен к материалам.\n\n"
+            f"✅ Файл «{file_name}» добавлен в раздел «{display_name}».\n\n"
             f"Вы можете прикрепить ещё файл или удалить старые.",
             reply_markup=reply_markup
         )
         return EDIT_MATERIALS_INPUT
 
-    new_text = update.message.text.strip()
-    if new_text.lower() == "назад":
+    if update.message.text and update.message.text.strip().lower() == "назад":
         return await admin_menu(update, context)
 
-    data['specialties'][specialty]['materials'] = new_text
-    save_data(data)
-
-    keyboard = [
-        ["🗑 Удалить файл"],
-        ["🔙 Назад"]
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
     await update.message.reply_text(
-        f"✅ Материалы по «{specialty}» обновлены.\n\n"
-        f"Вы можете прикрепить файл или удалить старые.",
-        reply_markup=reply_markup
+        "Пожалуйста, отправьте файл (PDF, DOCX и т.д.) или нажмите «🔙 Назад» для выхода.",
+        reply_markup=ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True)
     )
     return EDIT_MATERIALS_INPUT
 
 
 async def prompt_file_deletion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     specialty = context.user_data.get('edit_specialty')
+    file_key = context.user_data.get("current_file_key", "attachments")
     data = load_data()
-    attachments = data['specialties'][specialty].get("attachments", [])
+    attachments = data['specialties'][specialty].get(file_key, [])
 
     if not attachments:
         await update.message.reply_text("❌ Нет прикреплённых файлов.")
@@ -491,8 +514,9 @@ async def handle_admin_file_delete(update: Update, context: ContextTypes.DEFAULT
 
         deleted = attachments.pop(index)
         specialty = context.user_data.get('edit_specialty')
+        file_key = context.user_data.get("current_file_key", "attachments")
         data = load_data()
-        data['specialties'][specialty]['attachments'] = attachments
+        data['specialties'][specialty][file_key] = attachments
         save_data(data)
 
         keyboard = [
@@ -507,7 +531,6 @@ async def handle_admin_file_delete(update: Update, context: ContextTypes.DEFAULT
             reply_markup=reply_markup
         )
         return EDIT_MATERIALS_INPUT
-
 
     except ValueError:
         await update.message.reply_text(
@@ -910,3 +933,55 @@ async def edit_question_correct_prompt(update: Update, context: ContextTypes.DEF
         reply_markup=ReplyKeyboardRemove()
     )
     return EDIT_QUESTION_CORRECT
+
+async def choose_specialty_for_file_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, file_key: str, display_name: str):
+    data = load_data()
+    specialties = list(data['specialties'].keys())
+    if not specialties:
+        await update.message.reply_text("Специальностей пока нет, добавьте их сначала.")
+        return ADMIN_MENU
+
+    specialties_text = f"📋 Выберите специальность для редактирования {display_name}:\n\n" + \
+                       "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
+                       f"\n\nВведите номер специальности:"
+
+    keyboard = ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
+
+    context.user_data['specialties_list'] = specialties
+    context.user_data['edit_file_key'] = file_key
+    context.user_data['edit_file_name'] = display_name
+
+    await update.message.reply_text(specialties_text, reply_markup=keyboard)
+    return CHOOSE_SPECIALTY_FOR_EDIT_FILE
+
+
+async def handle_file_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    specialties = context.user_data.get('specialties_list', [])
+    file_key = context.user_data.get('edit_file_key')
+    display_name = context.user_data.get('edit_file_name')
+
+    if text == "🔙 Назад":
+        return await admin_menu(update, context)
+
+    try:
+        index = int(text) - 1
+        specialty = specialties[index]
+        context.user_data['edit_specialty'] = specialty
+
+        data = load_data()
+        attachments = data['specialties'][specialty].get(file_key, [])
+        context.user_data['attachments'] = attachments
+        context.user_data['current_file_key'] = file_key
+
+        file_list = "\n".join([f"{i + 1}. {a['file_name']}" for i, a in enumerate(attachments)]) or "❌ Нет файлов"
+
+        text_msg = f"📂 {display_name} по специальности «{specialty}»:\n\n{file_list}\n\n" \
+                   f"Отправьте файл для добавления или нажмите кнопку для удаления."
+
+        keyboard = [["🗑 Удалить файл"], ["🔙 Назад"]]
+        await update.message.reply_text(text_msg, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+        return EDIT_MATERIALS_INPUT  # можно использовать существующее состояние
+    except:
+        await update.message.reply_text("Некорректный номер. Попробуйте ещё раз.")
+        return CHOOSE_SPECIALTY_FOR_EDIT_FILE

@@ -46,6 +46,9 @@ def main():
                                                MessageHandler(filters.TEXT & ~filters.COMMAND, add_specialty_name)],
                                            CHOOSE_SPECIALTY_FOR_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND,
                                                                                       choose_specialty_for_edit)],
+                                           CHOOSE_SPECIALTY_FOR_EDIT_FILE: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND, handle_file_edit)
+                                           ],
                                            EDIT_MATERIALS_INPUT: [
                                                MessageHandler(filters.TEXT & filters.Regex("^🗑 Удалить файл$"),
                                                               prompt_file_deletion),
