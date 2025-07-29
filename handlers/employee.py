@@ -16,9 +16,15 @@ async def choose_specialty_prompt_employee(update: Update, context: ContextTypes
 
     specialties_text = "📋 Доступные специальности:\n\n" + \
                        "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
-                       "\n\nВведите номер специальности (или 'назад' для отмены):"
+                       "\n\nВыберите номер специальности или нажмите «🔙 Назад»:"
 
-    await update.message.reply_text(specialties_text, reply_markup=ReplyKeyboardRemove())
+    keyboard = ReplyKeyboardMarkup(
+        [["🔙 Назад"]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+    await update.message.reply_text(specialties_text, reply_markup=keyboard)
     context.user_data['specialties_list'] = specialties
     return CHOOSE_SPECIALTY_EMPLOYEE
 
@@ -27,7 +33,7 @@ async def choose_specialty_employee(update: Update, context: ContextTypes.DEFAUL
     text = update.message.text.strip()
     specialties = context.user_data.get('specialties_list', [])
 
-    if text.lower() == "назад":
+    if text == "🔙 Назад":
         keyboard = [["Ученик", "Наставник", "Админ"]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
