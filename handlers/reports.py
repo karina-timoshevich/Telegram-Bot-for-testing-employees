@@ -4,18 +4,19 @@ from data_utils import load_results
 from data_utils import load_data
 
 
-async def send_full_report(update, context):
+async def send_full_report(update, context, role="admin"):
     results = load_results()
     if not results:
         await update.message.reply_text("📭 Нет доступных результатов.")
-        return ADMIN_MENU
+        return ADMIN_MENU if role == "admin" else MENTOR_MENU
 
     data = load_data()
     specialties = sorted(data.get("specialties", {}).keys())
     context.user_data["report_results"] = results
     context.user_data["report_specialties"] = specialties
+    context.user_data["report_role"] = role  
 
-    specialties_text = "📋 Доступные специальности:\n\n" + \
+    specialties_text = f"📋 Доступные специальности ({role}):\n\n" + \
         "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
         "\n\nВведите номер специальности или нажмите «🔙 Назад»:"
 
@@ -35,9 +36,15 @@ from telegram import InputFile
 
 async def handle_selected_specialty_report(update, context):
     text = update.message.text.strip()
+    role = context.user_data.get("report_role", "admin")
+
     if text == "🔙 Назад":
-        from handlers.admin import admin_menu
-        return await admin_menu(update, context)
+        if role == "admin":
+            from handlers.admin import admin_menu
+            return await admin_menu(update, context)
+        else:
+            from handlers.mentor import mentor_menu
+            return await mentor_menu(update, context)
 
     specialties = context.user_data.get("report_specialties", [])
     results = context.user_data.get("report_results", [])

@@ -158,7 +158,7 @@ async def handle_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif choice == "📊 Сводный отчёт":
         context.user_data.pop("in_specialty_correction", None)
-        return await send_full_report(update, context)
+        return await send_full_report(update, context, role="admin")
 
     else:
         context.user_data.pop("in_specialty_correction", None)

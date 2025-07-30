@@ -68,7 +68,8 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif choice == "🧪 TWI – производственное обучение":
         file_path = "mentor_content/practice.txt"
     elif choice == "📊 Сводный отчёт":
-        file_path = "mentor_content/practice.txt"
+        context.user_data.pop("in_specialty_correction", None)
+        return await send_full_report(update, context, role="mentor")
     else:
         await update.message.reply_text("Пожалуйста, выберите пункт из меню.")
         return MENTOR_MENU
