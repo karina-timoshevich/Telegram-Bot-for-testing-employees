@@ -62,14 +62,67 @@ async def handle_mentor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return CHOOSE_ROLE
     elif choice == "📚 Теоретические материалы":
-        file_path = "mentor_content/theory.txt"
+        return await choose_specialty_for_mentor_file(update, context, file_key="attachments", display_name="материалы")
     elif choice == "🗂 УПД":
-        file_path = "mentor_content/plans.txt"
+        return await choose_specialty_for_mentor_file(update, context, file_key="upd_attachments", display_name="УПД")
     elif choice == "🧪 TWI – производственное обучение":
-        file_path = "mentor_content/practice.txt"
+        return await choose_specialty_for_mentor_file(update, context, file_key="twi_attachments", display_name="TWI")
     elif choice == "📊 Сводный отчёт":
         context.user_data.pop("in_specialty_correction", None)
         return await send_full_report(update, context, role="mentor")
     else:
         await update.message.reply_text("Пожалуйста, выберите пункт из меню.")
         return MENTOR_MENU
+
+async def choose_specialty_for_mentor_file(update: Update, context: ContextTypes.DEFAULT_TYPE, file_key: str, display_name: str):
+    data = load_data()
+    specialties = list(data["specialties"].keys())
+
+    if not specialties:
+        await update.message.reply_text("❌ Нет доступных специальностей.")
+        return MENTOR_MENU
+
+    text = f"📋 Доступные специальности для {display_name}:\n\n" + \
+           "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
+           "\n\nВведите номер специальности или нажмите «🔙 Назад»."
+
+    keyboard = ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True, one_time_keyboard=True)
+
+    context.user_data['specialties_list'] = specialties
+    context.user_data['mentor_file_key'] = file_key
+    context.user_data['mentor_display_name'] = display_name
+
+    await update.message.reply_text(text, reply_markup=keyboard)
+    return CHOOSE_SPECIALTY_FOR_MENTOR_FILE
+
+
+async def send_files_for_specialty_to_mentor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    if text == "🔙 Назад":
+        return await mentor_menu(update, context)
+
+    specialties = context.user_data.get("specialties_list", [])
+    try:
+        index = int(text) - 1
+        if index < 0 or index >= len(specialties):
+            raise ValueError
+
+        specialty = specialties[index]
+        file_key = context.user_data.get("mentor_file_key")
+        display_name = context.user_data.get("mentor_display_name")
+
+        data = load_data()
+        attachments = data["specialties"].get(specialty, {}).get(file_key, [])
+
+        if not attachments:
+            await update.message.reply_text(f"📭 Для специальности «{specialty}» нет файлов {display_name}.")
+        else:
+            await update.message.reply_text(f"📂 {display_name} для «{specialty}»:")
+            for doc in attachments:
+                await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
+
+        return await mentor_menu(update, context)
+
+    except ValueError:
+        await update.message.reply_text("Неверный номер. Попробуйте ещё раз.")
+        return CHOOSE_SPECIALTY_FOR_MENTOR_FILE

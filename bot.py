@@ -10,7 +10,7 @@ from handlers.admin import *
 from handlers.common import start, choose_role
 from handlers.employee import choose_specialty_employee, handle_action_after_specialty, handle_after_materials, \
     receive_employee_fio
-from handlers.mentor import enter_password_mentor, mentor_menu, handle_mentor_menu
+from handlers.mentor import enter_password_mentor, mentor_menu, handle_mentor_menu, send_files_for_specialty_to_mentor
 from handlers.reports import handle_selected_specialty_report
 from handlers.test import handle_test_answer
 load_dotenv()
@@ -53,7 +53,10 @@ def main():
                                            ],
                                            SELECT_SPECIALTY_FOR_REPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND,
                                                                                         handle_selected_specialty_report)],
-
+                                           CHOOSE_SPECIALTY_FOR_MENTOR_FILE: [
+                                               MessageHandler(filters.TEXT & ~filters.COMMAND,
+                                                              send_files_for_specialty_to_mentor)
+                                           ],
                                            EDIT_MATERIALS_INPUT: [
                                                MessageHandler(filters.TEXT & filters.Regex("^🗑 Удалить файл$"),
                                                               prompt_file_deletion),
