@@ -14,7 +14,7 @@ async def send_full_report(update, context, role="admin"):
     specialties = sorted(data.get("specialties", {}).keys())
     context.user_data["report_results"] = results
     context.user_data["report_specialties"] = specialties
-    context.user_data["report_role"] = role  
+    context.user_data["report_role"] = role
 
     specialties_text = f"📋 Доступные специальности ({role}):\n\n" + \
         "\n".join([f"{i + 1}. {spec}" for i, spec in enumerate(specialties)]) + \
@@ -58,14 +58,30 @@ async def handle_selected_specialty_report(update, context):
         await update.message.reply_text("⚠️ Некорректный номер. Попробуйте ещё раз.")
         return SELECT_SPECIALTY_FOR_REPORT
 
-    filtered = [r for r in results if r["specialty"] == specialty]
+    print(">> selected specialty:", specialty)
+    print(">> all specialties in results:")
+    for r in results:
+        print("   -", r["specialty"])
+    filtered = [
+        r for r in results
+        if r["specialty"] == specialty or r["specialty"].startswith(specialty + "::")
+    ]
 
     if not filtered:
-        await update.message.reply_text(
-            f"📭 По специальности «{specialty}» никто ещё не проходил аттестацию.\n\n"
-            f"Введите другой номер или нажмите «🔙 Назад»:"
-        )
-        return SELECT_SPECIALTY_FOR_REPORT
+        filtered = [r for r in results if r["specialty"].startswith(specialty + "::")]
+
+        if not filtered:
+            await update.message.reply_text(
+                f"📭 По специальности «{specialty}» и её подвидам никто ещё не проходил аттестацию.\n\n"
+                f"Введите другой номер или нажмите «🔙 Назад»:"
+            )
+            return SELECT_SPECIALTY_FOR_REPORT
+        else:
+            await update.message.reply_text(
+                f"📭 По специальности «{specialty}» никто ещё не проходил аттестацию.\n\n"
+                f"Введите другой номер или нажмите «🔙 Назад»:"
+            )
+            return SELECT_SPECIALTY_FOR_REPORT
 
     wb = Workbook()
     ws = wb.active
@@ -84,7 +100,7 @@ async def handle_selected_specialty_report(update, context):
             r.get("fio", "—"),
             "",
             "",
-            specialty,
+            r.get("specialty", "—"),
             r.get("username", "—"),
             r.get("user_id", "—"),
             r.get("timestamp", "—"),
@@ -111,10 +127,13 @@ async def handle_selected_specialty_report(update, context):
     wb.save(output)
     output.seek(0)
 
+    file_name = f"Аттестация_{specialty.replace('::', '_')}.xlsx"
+
     await update.message.reply_document(
-        InputFile(output, filename=f"Аттестация_{specialty.replace('::', '_')}.xlsx"),
+        InputFile(output, filename=file_name),
         caption=f"📊 Сводный отчёт по: {specialty}"
     )
 
     await update.message.reply_text("📨 Можете ввести следующий номер специальности или нажать «🔙 Назад»:")
     return SELECT_SPECIALTY_FOR_REPORT
+
