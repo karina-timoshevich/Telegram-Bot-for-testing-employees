@@ -58,6 +58,7 @@ async def choose_specialty_employee(update: Update, context: ContextTypes.DEFAUL
 
         keyboard = [
             ["📚 Получить материалы"],
+            ["🧪 TWI – производственное обучение"],
             ["📝 Пройти аттестацию"],
             ["🔙 Назад"]
         ]
@@ -98,6 +99,7 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
             await update.message.reply_text("📭 Прикрепленные файлы пока отсутствуют.")
 
         keyboard = [
+            ["🧪 TWI – производственное обучение"],
             ["📝 Пройти аттестацию"],
             ["🔙 К выбору специальности"],
             ["🏠 В главное меню"]
@@ -106,12 +108,35 @@ async def handle_action_after_specialty(update: Update, context: ContextTypes.DE
         await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
         return CHOOSE_AFTER_MATERIALS
 
+    elif choice == "🧪 TWI – производственное обучение":
+        specialty = context.user_data.get("specialty")
+        data = load_data()
+        attachments = data['specialties'].get(specialty, {}).get("twi_attachments", [])
+
+        if attachments:
+            await update.message.reply_text(f"📂 TWI материалы по специальности: {specialty}")
+            for doc in attachments:
+                await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
+        else:
+            await update.message.reply_text("📭 TWI материалы отсутствуют.")
+
+        keyboard = [
+            ["📚 Получить материалы"],
+            ["🧪 TWI – производственное обучение"],
+            ["📝 Пройти аттестацию"],
+            ["🔙 К выбору специальности"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("Выберите следующее действие:", reply_markup=reply_markup)
+        return CHOOSE_ACTION_AFTER_SPECIALTY
+
     elif choice == "📝 Пройти аттестацию":
         tests = context.user_data.get('tests', [])
         if not tests:
             keyboard = [
                 ["📚 Получить материалы"],
                 ["📝 Пройти аттестацию"],
+                ["🧪 TWI – производственное обучение"],
                 ["🔙 К выбору специальности"],
                 ["🏠 В главное меню"]
             ]
@@ -145,6 +170,7 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
         if not tests:
             keyboard = [
                 ["📚 Получить материалы"],
+                ["🧪 TWI – производственное обучение"],
                 ["📝 Пройти аттестацию"],
                 ["🔙 К выбору специальности"],
                 ["🏠 В главное меню"]
@@ -172,12 +198,35 @@ async def handle_after_materials(update: Update, context: ContextTypes.DEFAULT_T
             await update.message.reply_text("📭 Прикрепленные файлы пока отсутствуют.")
 
         keyboard = [
+            ["🧪 TWI – производственное обучение"],
             ["📝 Пройти аттестацию"],
             ["🔙 К выбору специальности"],
             ["🏠 В главное меню"]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
+        return CHOOSE_AFTER_MATERIALS
+
+    elif choice == "🧪 TWI – производственное обучение":
+        specialty = context.user_data.get("specialty")
+        data = load_data()
+        attachments = data['specialties'].get(specialty, {}).get("twi_attachments", [])
+
+        if attachments:
+            await update.message.reply_text(f"📂 TWI материалы по специальности: {specialty}")
+            for doc in attachments:
+                await update.message.reply_document(doc["file_id"], filename=doc["file_name"])
+        else:
+            await update.message.reply_text("📭 TWI материалы отсутствуют.")
+
+        keyboard = [
+            ["📚 Получить материалы"],
+            ["🧪 TWI – производственное обучение"],
+            ["📝 Пройти аттестацию"],
+            ["🔙 К выбору специальности"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("Выберите следующее действие:", reply_markup=reply_markup)
         return CHOOSE_AFTER_MATERIALS
 
     elif choice == "🔙 К выбору специальности":
@@ -212,6 +261,7 @@ async def receive_employee_fio(update: Update, context: ContextTypes.DEFAULT_TYP
     if text == "🔙 Назад":
         keyboard = [
             ["📚 Получить материалы"],
+            ["🧪 TWI – производственное обучение"],
             ["📝 Пройти аттестацию"],
             ["🔙 К выбору специальности"],
             ["🏠 В главное меню"]
