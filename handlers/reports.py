@@ -1,3 +1,5 @@
+from math import floor
+
 from telegram import ReplyKeyboardMarkup
 from constants import *
 from data_utils import load_results
@@ -12,7 +14,6 @@ async def send_full_report(update, context, role="admin"):
 
     data = load_data()
     specialties = sorted(data.get("specialties", {}).keys())
-    context.user_data["report_results"] = results
     context.user_data["report_specialties"] = specialties
     context.user_data["report_role"] = role
 
@@ -47,7 +48,8 @@ async def handle_selected_specialty_report(update, context):
             return await mentor_menu(update, context)
 
     specialties = context.user_data.get("report_specialties", [])
-    results = context.user_data.get("report_results", [])
+    from data_utils import load_results
+    results = load_results()
 
     try:
         index = int(text) - 1
@@ -94,19 +96,38 @@ async def handle_selected_specialty_report(update, context):
     ]
     ws.append(headers)
 
+    filtered.sort(key=lambda r: r.get("fio", "").lower())
+
     for i, r in enumerate(filtered, start=1):
+        fio = r.get("fio", "—")
+        specialty = r.get("specialty", "—")
+        username = r.get("username", "—")
+        user_id = r.get("user_id", "—")
+        timestamp = r.get("timestamp", "—")
+        correct = r.get("correct", 0)
+        total = r.get("total", 0)
+
+        errors = total - correct
+
+        if total == 0 or errors > 3:
+            result = "Пересдача"
+        elif errors == 3:
+            result = "7"
+        else:
+            result = str(round(correct * 10 / total))
+
         ws.append([
             i,
-            r.get("fio", "—"),
+            fio,
             "",
             "",
-            r.get("specialty", "—"),
-            r.get("username", "—"),
-            r.get("user_id", "—"),
-            r.get("timestamp", "—"),
-            r.get("correct", "—"),
-            r.get("total", "—"),
-            ""
+            specialty,
+            username,
+            user_id,
+            timestamp,
+            correct,
+            total,
+            result
         ])
 
     header_font = Font(bold=True)

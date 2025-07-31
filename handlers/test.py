@@ -141,6 +141,7 @@ async def show_test_result(message, context):
 
     keyboard = [
         ["📚 Получить материалы"],
+        ["🧪 TWI – производственное обучение"],
         ["📝 Пройти аттестацию"],
         ["🔙 К выбору специальности"],
         ["🏠 В главное меню"]
@@ -148,8 +149,8 @@ async def show_test_result(message, context):
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
     msg = f"Тест завершён!\nПравильных ответов: {correct} из {total}."
-    if incorrect > 2:
-        msg += "\n❗️ Неправильных ответов больше двух — нужна пересдача."
+    if incorrect > 3:
+        msg += "\n❗️ Неправильных ответов больше трех — нужна пересдача."
 
     await message.reply_text(msg, reply_markup=reply_markup)
     return CHOOSE_AFTER_MATERIALS
